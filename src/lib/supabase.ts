@@ -16,6 +16,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     detectSessionInUrl: true,
   },
+  // Deshabilitar realtime en Node (build SSR) para evitar error de WebSocket
+  realtime: {
+    params: {
+      eventsPerSecond: 10,
+    },
+  },
 });
 
 // ============================================================
