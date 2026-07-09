@@ -1,0 +1,33 @@
+---
+import type { SiteConfigMap } from '../lib/supabase';
+
+export interface Props {
+  configs: SiteConfigMap;
+}
+
+const { configs } = Astro.props;
+const _rawBase = import.meta.env.BASE_URL || '/';
+const base = _rawBase.endsWith('/') ? _rawBase : _rawBase + '/';
+---
+
+<header class="navbar">
+  <div class="navbar-inner">
+    <a href={base} class="navbar-logo">
+      <svg width="32" height="32" viewBox="0 0 54 54" xmlns="http://www.w3.org/2000/svg">
+        <rect x="8" y="8" width="44" height="44" fill="#000000" />
+        <rect x="2" y="2" width="44" height="44" fill="#ffd400" stroke="#000000" stroke-width="4" />
+        <rect x="16" y="16" width="16" height="16" fill="#000000" />
+      </svg>
+      <span>HookBloq</span>
+    </a>
+    <nav>
+      <ul class="navbar-links">
+        <li><a href={`${base}#servicios`} class="navbar-link">Servicios</a></li>
+        <li><a href={`${base}#proceso`} class="navbar-link">Proceso</a></li>
+        <li><a href={`${base}#tecnologias`} class="navbar-link">Tecnologias</a></li>
+        <li><a href={`${base}blog`} class="navbar-link">Blog</a></li>
+        <li><a href={`${base}#contacto`} class="navbar-link">Contacto</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>

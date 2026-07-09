@@ -1,0 +1,164 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+---
+
+<AdminLayout title="Dashboard" active="dashboard">
+  <div id="dashboard-mount">
+    <div class="flex items-center gap-3 mb-8">
+      <h1 class="font-display font-extrabold" style="font-size:clamp(1.75rem,4vw,2.5rem)">Dashboard</h1>
+      <span class="loading-spinner" id="loadingIndicator"></span>
+    </div>
+    <p class="text-sm text-ink-muted">Cargando estadisticas...</p>
+  </div>
+
+  <script>
+    import { supabase } from '../../lib/supabase';
+    import { getLoginUrl } from '../../lib/auth';
+
+    const _rawBase = import.meta.env.BASE_URL || '/';
+    const base = _rawBase.endsWith('/') ? _rawBase : _rawBase + '/';
+    const mount = document.getElementById('dashboard-mount')!;
+    const loadingEl = document.getElementById('loadingIndicator');
+
+    async function init() {
+      // Verificar sesion
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        window.location.href = getLoginUrl();
+        return;
+      }
+
+      const user = session.user;
+      const metadata = user.user_metadata ?? {};
+      const userInfo = {
+        id: user.id,
+        email: user.email ?? '',
+        name: metadata.name ?? 'Admin',
+        role: metadata.role ?? 'user',
+      };
+
+      // Inyectar info del usuario en el sidebar
+      const nameEl = document.getElementById('userName');
+      const emailEl = document.getElementById('userEmail');
+      const avatarEl = document.getElementById('userAvatar');
+      if (nameEl) nameEl.textContent = userInfo.name;
+      if (emailEl) emailEl.textContent = userInfo.email;
+      if (avatarEl) avatarEl.textContent = (userInfo.name || 'A').charAt(0).toUpperCase();
+
+      // Exponer supabase client para el logout del layout
+      (window as any).__supabaseClient = supabase;
+
+      // Cargar stats en paralelo
+      const [pubRes, draftRes, unreadRes, recentRes] = await Promise.all([
+        supabase.from('articles').select('*', { count: 'exact', head: true }).eq('is_published', true),
+        supabase.from('articles').select('*', { count: 'exact', head: true }).eq('is_published', false),
+        supabase.from('contact_messages').select('*', { count: 'exact', head: true }).eq('is_read', false),
+        supabase.from('contact_messages').select('id, name, email, phone, country, message, is_read, created_at').order('created_at', { ascending: false }).limit(5),
+      ]);
+
+      const publishedCount = pubRes.count ?? 0;
+      const draftCount = draftRes.count ?? 0;
+      const unreadCount = unreadRes.count ?? 0;
+      const recentMessages = recentRes.data ?? [];
+
+      // Actualizar badge del sidebar
+      const updateBadge = (window as any).__updateUnreadBadge;
+      if (typeof updateBadge === 'function') updateBadge(unreadCount);
+
+      function timeAgo(dateStr: string): string {
+        const date = new Date(dateStr);
+        const diff = Date.now() - date.getTime();
+        const mins = Math.floor(diff / 60000);
+        if (mins < 1) return 'hace un momento';
+        if (mins < 60) return `hace ${mins} min`;
+        const hours = Math.floor(mins / 60);
+        if (hours < 24) return `hace ${hours}h`;
+        const days = Math.floor(hours / 24);
+        if (days < 30) return `hace ${days}d`;
+        return date.toLocaleDateString('es-ES');
+      }
+
+      function truncate(s: string, n: number): string {
+        return s.length > n ? s.slice(0, n) + '...' : s;
+      }
+
+      const messagesHtml = recentMessages.length > 0
+        ? `<div class="flex flex-col gap-3">
+            ${recentMessages.map((msg: any) => `
+              <a href="${base}admin/messages/show?id=${msg.id}" class="card card-hover" style="padding:1rem;text-decoration:none;color:inherit;display:block">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="font-bold text-sm">${escapeHtml(msg.name)}</span>
+                  <div class="flex items-center gap-2">
+                    ${!msg.is_read ? '<span class="tag tag-danger tag-sm">Nuevo</span>' : ''}
+                    <span class="font-mono text-xs text-ink-muted">${timeAgo(msg.created_at)}</span>
+                  </div>
+                </div>
+                <p class="text-sm text-ink-muted">${escapeHtml(truncate(msg.message, 100))}</p>
+                <div class="text-xs font-mono text-ink-muted mt-1">${escapeHtml(msg.email)}${msg.phone ? ' · ' + escapeHtml(msg.phone) : ''}${msg.country ? ' · ' + escapeHtml(msg.country) : ''}</div>
+              </a>
+            `).join('')}
+          </div>`
+        : `<div class="card text-center py-6"><p class="text-sm text-ink-muted">No hay mensajes aun.</p></div>`;
+
+      mount.innerHTML = `
+        <div class="flex items-center justify-between mb-8">
+          <h1 class="font-display font-extrabold" style="font-size:clamp(1.75rem,4vw,2.5rem)">Dashboard</h1>
+        </div>
+
+        <div class="grid-4 mb-12">
+          <div class="card card-hover bg-accent">
+            <div class="stat-value">${publishedCount}</div>
+            <div class="stat-label">Articulos publicados</div>
+          </div>
+          <div class="card card-hover">
+            <div class="stat-value">${draftCount}</div>
+            <div class="stat-label">Borradores</div>
+          </div>
+          <div class="card card-hover">
+            <a href="${base}admin/messages" style="text-decoration:none;color:inherit;display:block">
+              <div class="stat-value">${unreadCount}</div>
+              <div class="stat-label">Mensajes sin leer</div>
+            </a>
+          </div>
+          <div class="card card-hover">
+            <div class="stat-value">${publishedCount + draftCount}</div>
+            <div class="stat-label">Total articulos</div>
+          </div>
+        </div>
+
+        <div class="grid-2" style="align-items:start">
+          <div>
+            <h3 class="font-display text-xl font-extrabold mb-4">Acciones rapidas</h3>
+            <div class="card">
+              <div class="flex flex-col gap-3">
+                <a href="${base}admin/articles/new" class="btn btn-primary w-full">Nuevo articulo <i class="bi bi-plus-lg"></i></a>
+                <a href="${base}admin/config" class="btn btn-outline w-full">Configuracion del sitio <i class="bi bi-gear"></i></a>
+                <a href="${base}" target="_blank" class="btn btn-outline w-full">Ver sitio web <i class="bi bi-box-arrow-up-right"></i></a>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-display text-xl font-extrabold">Mensajes recientes</h3>
+              ${recentMessages.length > 0 ? `<a href="${base}admin/messages" class="btn btn-outline btn-sm">Ver todos <i class="bi bi-arrow-right"></i></a>` : ''}
+            </div>
+            ${messagesHtml}
+          </div>
+        </div>
+      `;
+    }
+
+    function escapeHtml(s: string): string {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]!));
+    }
+
+    init().catch((err) => {
+      console.error('[dashboard] Error:', err);
+      if (loadingEl) loadingEl.style.display = 'none';
+      mount.innerHTML = `<div class="alert alert-error">Error al cargar el dashboard: ${escapeHtml(err.message || 'desconocido')}</div>`;
+    });
+  </script>
+</AdminLayout>

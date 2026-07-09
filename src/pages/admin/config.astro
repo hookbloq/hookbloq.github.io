@@ -1,0 +1,121 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { loadSiteConfigs, DEFAULT_CONFIGS } from '../../lib/site-config';
+
+// Pre-cargar configs en build time para tener los defaults disponibles
+const configs = await loadSiteConfigs();
+---
+
+<AdminLayout title="Configuracion" active="config">
+  <h1 class="font-display font-extrabold mb-8" style="font-size:clamp(1.75rem,4vw,2.5rem)">Configuracion del Sitio</h1>
+
+  <div id="alertMount"></div>
+
+  <form id="configForm" class="card">
+    <div class="mb-8">
+      <h3 class="font-display text-xl font-extrabold mb-4">Informacion de Contacto</h3>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label" for="email">Email</label>
+          <input class="form-input" id="email" name="email" type="email" value={configs.email} />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="whatsapp">WhatsApp</label>
+          <input class="form-input" id="whatsapp" name="whatsapp" type="text" value={configs.whatsapp} placeholder="+57 3217269649" />
+        </div>
+      </div>
+      <div class="form-group mt-4">
+        <label class="form-label" for="instagram">URL de Instagram</label>
+        <input class="form-input" id="instagram" name="instagram" type="url" value={configs.instagram} placeholder="https://instagram.com/hookbloq" />
+      </div>
+    </div>
+
+    <div class="mb-8">
+      <h3 class="font-display text-xl font-extrabold mb-4">Contenido del Hero</h3>
+      <div class="form-group">
+        <label class="form-label" for="hero_title">Titulo principal</label>
+        <input class="form-input" id="hero_title" name="hero_title" type="text" value={configs.hero_title} />
+      </div>
+      <div class="form-group mt-4">
+        <label class="form-label" for="hero_subtitle">Subtitulo</label>
+        <textarea class="form-textarea" id="hero_subtitle" name="hero_subtitle" rows="2">{configs.hero_subtitle}</textarea>
+      </div>
+    </div>
+
+    <div class="mb-8">
+      <h3 class="font-display text-xl font-extrabold mb-4">Footer</h3>
+      <div class="form-group">
+        <label class="form-label" for="footer_text">Texto del footer</label>
+        <textarea class="form-textarea" id="footer_text" name="footer_text" rows="2">{configs.footer_text}</textarea>
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+      Guardar configuracion <span style="font-size:1.2em">&#8594;</span>
+    </button>
+  </form>
+
+  <script>
+    import { supabase } from '../../lib/supabase';
+    import { getLoginUrl } from '../../lib/auth';
+    import { CONFIG_KEYS } from '../../lib/site-config';
+
+    const form = document.getElementById('configForm') as HTMLFormElement;
+    const submitBtn = document.getElementById('submitBtn') as HTMLButtonElement;
+    const alertMount = document.getElementById('alertMount')!;
+
+    function showMsg(msg: string, type: 'success' | 'error' = 'success') {
+      alertMount.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+      if (type === 'success') setTimeout(() => { alertMount.innerHTML = ''; }, 4000);
+    }
+
+    (async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        window.location.href = getLoginUrl();
+        return;
+      }
+      (window as any).__supabaseClient = supabase;
+
+      // Recargar configs desde la BD para tener los valores mas frescos
+      const { data, error } = await supabase.from('site_configs').select('key, value');
+      if (!error && data) {
+        for (const row of data) {
+          const el = document.getElementById(row.key) as HTMLInputElement | HTMLTextAreaElement | null;
+          if (el && row.value !== null) el.value = row.value;
+        }
+      }
+    })();
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="loading-spinner"></span> Guardando...';
+
+      try {
+        // Upsert de cada config
+        const updates = CONFIG_KEYS.map((key) => {
+          const el = document.getElementById(key) as HTMLInputElement | HTMLTextAreaElement | null;
+          const value = el?.value.trim() ?? '';
+          return { key, value };
+        });
+
+        for (const { key, value } of updates) {
+          // Intentar update primero, si no existe la fila, insert
+          const { error: upErr } = await supabase
+            .from('site_configs')
+            .upsert({ key, value }, { onConflict: 'key' });
+          if (upErr) throw upErr;
+        }
+
+        showMsg('Configuracion actualizada exitosamente.', 'success');
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Error desconocido';
+        showMsg('Error al guardar: ' + msg, 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'Guardar configuracion <span style="font-size:1.2em">&#8594;</span>';
+      }
+    });
+  </script>
+</AdminLayout>

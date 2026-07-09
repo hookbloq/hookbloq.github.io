@@ -1,0 +1,406 @@
+---
+import PublicLayout from '../layouts/PublicLayout.astro';
+import ContactForm from '../components/ContactForm.tsx';
+import { supabase, type Article } from '../lib/supabase';
+import { cleanWhatsAppNumber, loadSiteConfigs } from '../lib/site-config';
+
+// Fetch en build time: ultimos 3 articulos publicados
+const { data: articles, error } = await supabase
+  .from('articles')
+  .select('id, title, slug, excerpt, content, tags, featured_image, published_at')
+  .eq('is_published', true)
+  .order('published_at', { ascending: false })
+  .limit(3);
+
+const latestArticles: Article[] = articles ?? [];
+
+function tagsArray(tags: string | null | undefined): string[] {
+  if (!tags) return [];
+  return tags.split(',').map((t) => t.trim()).filter(Boolean);
+}
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+  return `${d.getDate().toString().padStart(2, '0')} ${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function excerptFallback(article: Article): string {
+  if (article.excerpt) return article.excerpt;
+  const text = article.content.replace(/<[^>]*>/g, '');
+  return text.length > 120 ? text.slice(0, 120) + '...' : text;
+}
+
+const _rawBase = import.meta.env.BASE_URL || '/';
+const base = _rawBase.endsWith('/') ? _rawBase : _rawBase + '/';
+// Necesitamos los configs para el CTA (los carga PublicLayout pero aquí también)
+const configs = await loadSiteConfigs();
+const whatsappClean = cleanWhatsAppNumber(configs.whatsapp ?? '');
+---
+
+<PublicLayout title="Inicio">
+  <!-- HERO -->
+  <section class="hero grid-bg">
+    <div class="container py-12">
+      <div data-aos="fade-up">
+        <div class="flex flex-wrap items-center gap-3 mb-8">
+          <span class="tag tag-accent">Automatizacion IA</span>
+          <span class="flex items-center gap-2 text-xs font-mono text-uppercase tracking-wide text-ink-muted">
+            <span style="display:inline-block;width:6px;height:6px;background:var(--color-accent-2)"></span>
+            Colombia · Venezuela
+          </span>
+        </div>
+      </div>
+
+      <h1 class="font-display hero-title mb-6" data-aos="fade-up" data-aos-delay="100">
+        {configs.hero_title}
+      </h1>
+
+      <p class="text-lg hero-subtitle mb-12" data-aos="fade-up" data-aos-delay="200">
+        {configs.hero_subtitle}
+      </p>
+
+      <div class="flex flex-wrap items-center gap-4 mb-16" data-aos="fade-up" data-aos-delay="300">
+        <a href="#contacto" class="btn btn-primary btn-lg">Quiero automatizar <span style="font-size:1.1em">&#8594;</span></a>
+        <a href="#servicios" class="btn btn-outline btn-lg">Ver servicios</a>
+      </div>
+
+      <div class="hero-stats" data-aos="fade-up" data-aos-delay="400">
+        <div class="hero-stat"><div class="hero-stat-value">24/7</div><div class="hero-stat-label">Disponible</div></div>
+        <div class="hero-stat"><div class="hero-stat-value">3s</div><div class="hero-stat-label">Respuesta</div></div>
+        <div class="hero-stat"><div class="hero-stat-value">CO/VE</div><div class="hero-stat-label">Paises</div></div>
+        <div class="hero-stat"><div class="hero-stat-value">100%</div><div class="hero-stat-label">Soporte</div></div>
+      </div>
+    </div>
+
+    <div class="marquee-wrap">
+      <div class="marquee-track">
+        <span class="marquee-item">n8n <span style="color:var(--color-accent)">&#9670;</span></span>
+        <span class="marquee-item">Webhooks <span style="color:var(--color-accent)">&#9670;</span></span>
+        <span class="marquee-item">IA <span style="color:var(--color-accent)">&#9670;</span></span>
+        <span class="marquee-item">Instagram <span style="color:var(--color-accent)">&#9670;</span></span>
+        <span class="marquee-item">WhatsApp <span style="color:var(--color-accent)">&#9670;</span></span>
+        <span class="marquee-item">Automatizacion <span style="color:var(--color-accent)">&#9670;</span></span>
+        <span class="marquee-item">n8n <span style="color:var(--color-accent)">&#9670;</span></span>
+        <span class="marquee-item">Webhooks <span style="color:var(--color-accent)">&#9670;</span></span>
+        <span class="marquee-item">IA <span style="color:var(--color-accent)">&#9670;</span></span>
+        <span class="marquee-item">Instagram <span style="color:var(--color-accent)">&#9670;</span></span>
+        <span class="marquee-item">WhatsApp <span style="color:var(--color-accent)">&#9670;</span></span>
+        <span class="marquee-item">Automatizacion <span style="color:var(--color-accent)">&#9670;</span></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- SERVICIOS -->
+  <section class="section" id="servicios">
+    <div class="container">
+      <span class="section-label mb-6" data-aos="fade-up">01 SERVICIOS</span>
+      <h2 class="font-display font-extrabold leading-tight mb-12" style="font-size:clamp(2rem,5vw,4rem)" data-aos="fade-up" data-aos-delay="100">Automatizamos tu negocio con IA.</h2>
+
+      <div class="grid-2">
+        <div class="card card-hover" data-aos="fade-up" data-aos-delay="0">
+          <div class="flex items-center gap-3 mb-4">
+            <i class="bi bi-instagram" style="font-size:1.75rem;"></i>
+            <h3 class="font-display text-xl font-extrabold">Bots para Instagram</h3>
+          </div>
+          <p class="text-sm text-ink-muted leading-relaxed mb-4">Responde automaticamente a tus clientes por DM. Agenda citas, responde preguntas frecuentes y captura leads 24/7 sin que tengas que estar pegado al telefono.</p>
+          <div class="flex flex-wrap gap-1 mt-auto">
+            <span class="tag tag-accent tag-sm">DM Automatizado</span>
+            <span class="tag tag-default tag-sm">Agendamiento</span>
+            <span class="tag tag-default tag-sm">24/7</span>
+          </div>
+        </div>
+
+        <div class="card card-hover" data-aos="fade-up" data-aos-delay="100">
+          <div class="flex items-center gap-3 mb-4">
+            <i class="bi bi-whatsapp" style="font-size:1.75rem;"></i>
+            <h3 class="font-display text-xl font-extrabold">Bots para WhatsApp</h3>
+          </div>
+          <p class="text-sm text-ink-muted leading-relaxed mb-4">Automatiza la atencion al cliente en WhatsApp. El bot responde, agenda, confirma y hace seguimiento a tus clientes sin intervencion humana.</p>
+          <div class="flex flex-wrap gap-1 mt-auto">
+            <span class="tag tag-accent tag-sm">WhatsApp API</span>
+            <span class="tag tag-default tag-sm">Recordatorios</span>
+            <span class="tag tag-default tag-sm">24/7</span>
+          </div>
+        </div>
+
+        <div class="card card-hover" data-aos="fade-up" data-aos-delay="200">
+          <div class="flex items-center gap-3 mb-4">
+            <i class="bi bi-diagram-3" style="font-size:1.75rem;"></i>
+            <h3 class="font-display text-xl font-extrabold">Flujos con n8n</h3>
+          </div>
+          <p class="text-sm text-ink-muted leading-relaxed mb-4">Disenamos flujos de trabajo automatizados con n8n y webhooks. Conectamos tus apps, bases de datos y APIs para que todo funcione solo.</p>
+          <div class="flex flex-wrap gap-1 mt-auto">
+            <span class="tag tag-accent tag-sm">n8n</span>
+            <span class="tag tag-default tag-sm">Webhooks</span>
+            <span class="tag tag-default tag-sm">APIs</span>
+          </div>
+        </div>
+
+        <div class="card card-hover" data-aos="fade-up" data-aos-delay="300">
+          <div class="flex items-center gap-3 mb-4">
+            <i class="bi bi-headset" style="font-size:1.75rem;"></i>
+            <h3 class="font-display text-xl font-extrabold">Soporte Tecnico</h3>
+          </div>
+          <p class="text-sm text-ink-muted leading-relaxed mb-4">Nos encargamos de todo: instalacion, configuracion y mantenimiento. Tu solo disfruta los resultados mientras nosotros nos ocupamos de la tecnologia.</p>
+          <div class="flex flex-wrap gap-1 mt-auto">
+            <span class="tag tag-accent tag-sm">Mantenimiento</span>
+            <span class="tag tag-default tag-sm">Instalacion</span>
+            <span class="tag tag-default tag-sm">Soporte</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROCESO -->
+  <section class="section bg-surface-2" id="proceso">
+    <div class="container" style="max-width:56rem">
+      <span class="section-label mb-6" data-aos="fade-up">02 PROCESO</span>
+      <h2 class="font-display font-extrabold leading-tight mb-12" style="font-size:clamp(2rem,5vw,3.5rem)" data-aos="fade-up" data-aos-delay="100">Como trabajamos.</h2>
+
+      <div class="timeline">
+        <div class="timeline-item" data-aos="fade-up" data-aos-delay="0">
+          <div class="timeline-dot timeline-dot-current"></div>
+          <div class="timeline-body">
+            <div class="flex flex-wrap items-center gap-2 mb-3">
+              <span class="tag tag-accent">Paso 1</span>
+            </div>
+            <h3 class="font-display text-xl font-extrabold leading-tight">Contacto inicial</h3>
+            <p class="text-sm leading-relaxed mt-2 text-ink-muted">Hablamos sobre tu negocio, tus necesidades y que procesos quieres automatizar. Entendemos tu flujo de trabajo actual.</p>
+          </div>
+        </div>
+
+        <div class="timeline-item" data-aos="fade-up" data-aos-delay="150">
+          <div class="timeline-dot"></div>
+          <div class="timeline-body">
+            <div class="flex flex-wrap items-center gap-2 mb-3">
+              <span class="tag tag-default">Paso 2</span>
+            </div>
+            <h3 class="font-display text-xl font-extrabold leading-tight">Analisis y diseno</h3>
+            <p class="text-sm leading-relaxed mt-2 text-ink-muted">Disenamos el flujo de automatizacion ideal para tu negocio. Definimos las integraciones necesarias y los casos de uso.</p>
+          </div>
+        </div>
+
+        <div class="timeline-item" data-aos="fade-up" data-aos-delay="300">
+          <div class="timeline-dot"></div>
+          <div class="timeline-body">
+            <div class="flex flex-wrap items-center gap-2 mb-3">
+              <span class="tag tag-outline">Paso 3</span>
+            </div>
+            <h3 class="font-display text-xl font-extrabold leading-tight">Desarrollo del flujo</h3>
+            <p class="text-sm leading-relaxed mt-2 text-ink-muted">Construimos el agente de IA con n8n y webhooks. Programamos las respuestas automaticas, la integracion con tus redes sociales y la base de datos.</p>
+          </div>
+        </div>
+
+        <div class="timeline-item" data-aos="fade-up" data-aos-delay="450">
+          <div class="timeline-dot"></div>
+          <div class="timeline-body">
+            <div class="flex flex-wrap items-center gap-2 mb-3">
+              <span class="tag tag-outline">Paso 4</span>
+            </div>
+            <h3 class="font-display text-xl font-extrabold leading-tight">Instalacion</h3>
+            <p class="text-sm leading-relaxed mt-2 text-ink-muted">Instalamos el bot en tus redes sociales sin que tengas que hacer nada. Configuramos todo y hacemos pruebas para asegurar que funcione perfecto.</p>
+          </div>
+        </div>
+
+        <div class="timeline-item" data-aos="fade-up" data-aos-delay="600">
+          <div class="timeline-dot"></div>
+          <div class="timeline-body">
+            <div class="flex flex-wrap items-center gap-2 mb-3">
+              <span class="tag tag-outline">Paso 5</span>
+            </div>
+            <h3 class="font-display text-xl font-extrabold leading-tight">Soporte mensual</h3>
+            <p class="text-sm leading-relaxed mt-2 text-ink-muted">Te damos soporte continuo. Monitoreamos el bot, hacemos ajustes y nos aseguramos de que todo funcione sin problemas. Tu pagas una mensualidad que cubre todos los servicios.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CASO DE EXITO -->
+  <section class="section">
+    <div class="container">
+      <span class="section-label mb-6" data-aos="fade-up">03 CASO DE EXITO</span>
+      <h2 class="font-display font-extrabold leading-tight mb-12" style="font-size:clamp(2rem,5vw,4rem)" data-aos="fade-up" data-aos-delay="100">Resultados reales.</h2>
+
+      <div class="grid-2">
+        <div class="project-card" data-aos="fade-up" data-aos-delay="0">
+          <div class="project-cover project-cover-accent grid-bg-dark">
+            <span class="project-cover-letter" style="color:var(--color-accent-ink)">CP</span>
+            <span class="project-number">01</span>
+          </div>
+          <div class="project-body">
+            <div class="flex items-center gap-2 mb-3 text-xs font-mono text-uppercase tracking-wide text-ink-muted">
+              <span>2026</span><span>-</span><span>Cirujano Plastico</span>
+            </div>
+            <h3 class="font-display text-xl font-extrabold leading-tight mb-2">Bot de Agendamiento para Instagram</h3>
+            <p class="text-sm leading-relaxed mb-4 line-clamp-2 text-ink-muted">Automatizacion completa de agendamiento de citas via Instagram DM. El bot agenda automaticamente en Google Calendar y base de datos propia, sin conflictos de horario.</p>
+            <div class="flex flex-wrap gap-1 mt-auto">
+              <span class="tag tag-default tag-sm">n8n</span>
+              <span class="tag tag-default tag-sm">Instagram API</span>
+              <span class="tag tag-default tag-sm">Google Calendar</span>
+              <span class="tag tag-accent tag-sm">MySQL</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card card-hover flex flex-col justify-center" style="min-height:300px" data-aos="fade-up" data-aos-delay="100">
+          <div class="flex items-center gap-2 mb-3">
+            <span style="display:inline-block;width:8px;height:8px;background:var(--color-accent)"></span>
+            <span class="font-mono text-xs text-uppercase tracking-wide font-bold">RESULTADOS</span>
+          </div>
+          <div style="border-left: 3px solid var(--color-ink); padding-left: 1rem; margin: 0.5rem 0 1.5rem;">
+            <div class="font-display font-extrabold" style="font-size:3rem;line-height:1">24/7</div>
+            <div class="font-mono text-xs text-uppercase text-ink-muted mt-1">Atencion automatizada</div>
+          </div>
+          <p class="text-sm leading-relaxed text-ink-muted mb-4">El cliente ya no pierde citas por no responder a tiempo. Sus pacientes agenda directamente desde Instagram en segundos, sin intervencion manual.</p>
+          <div class="flex flex-wrap gap-1 mt-auto">
+            <span class="tag tag-accent tag-sm">0 errores</span>
+            <span class="tag tag-outline tag-sm">+70% eficiencia</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TECNOLOGIAS -->
+  <section class="section bg-inverse" id="tecnologias">
+    <div class="container">
+      <span class="section-label section-label-inverse mb-6" data-aos="fade-up">04 TECNOLOGIAS</span>
+      <h2 class="font-display font-extrabold leading-tight mb-12" style="font-size:clamp(2rem,5vw,3.5rem)" data-aos="fade-up" data-aos-delay="100">Las herramientas que usamos.</h2>
+
+      <div class="grid-3" data-aos="fade-up" data-aos-delay="200">
+        <div class="skill-card bg-inverse" style="border-color:var(--color-ink-inverse)">
+          <div class="flex items-center justify-between gap-2 mb-1">
+            <span class="font-bold text-base">n8n</span>
+            <span class="font-mono text-xs text-uppercase tracking-wide opacity-70">Avanzado</span>
+          </div>
+          <p class="text-xs opacity-60 mt-1">Flujos de trabajo automatizados con webhooks e integraciones.</p>
+        </div>
+        <div class="skill-card bg-inverse" style="border-color:var(--color-ink-inverse)">
+          <div class="flex items-center justify-between gap-2 mb-1">
+            <span class="font-bold text-base">Webhooks</span>
+            <span class="font-mono text-xs text-uppercase tracking-wide opacity-70">Avanzado</span>
+          </div>
+          <p class="text-xs opacity-60 mt-1">Conexion entre servicios en tiempo real sin intervencion manual.</p>
+        </div>
+        <div class="skill-card bg-inverse" style="border-color:var(--color-ink-inverse)">
+          <div class="flex items-center justify-between gap-2 mb-1">
+            <span class="font-bold text-base">Inteligencia Artificial</span>
+            <span class="font-mono text-xs text-uppercase tracking-wide opacity-70">Avanzado</span>
+          </div>
+          <p class="text-xs opacity-60 mt-1">Modelos de IA para respuestas inteligentes y procesamiento de lenguaje natural.</p>
+        </div>
+        <div class="skill-card bg-inverse" style="border-color:var(--color-ink-inverse)">
+          <div class="flex items-center justify-between gap-2 mb-1">
+            <span class="font-bold text-base">Instagram API</span>
+            <span class="font-mono text-xs text-uppercase tracking-wide opacity-70">Avanzado</span>
+          </div>
+          <p class="text-xs opacity-60 mt-1">Bots que responden DMs, agendan citas y capturan leads en Instagram.</p>
+        </div>
+        <div class="skill-card bg-inverse" style="border-color:var(--color-ink-inverse)">
+          <div class="flex items-center justify-between gap-2 mb-1">
+            <span class="font-bold text-base">WhatsApp API</span>
+            <span class="font-mono text-xs text-uppercase tracking-wide opacity-70">Intermedio</span>
+          </div>
+          <p class="text-xs opacity-60 mt-1">Automatizacion de atencion al cliente via WhatsApp Business API.</p>
+        </div>
+        <div class="skill-card bg-inverse" style="border-color:var(--color-ink-inverse)">
+          <div class="flex items-center justify-between gap-2 mb-1">
+            <span class="font-bold text-base">MySQL / PostgreSQL</span>
+            <span class="font-mono text-xs text-uppercase tracking-wide opacity-70">Avanzado</span>
+          </div>
+          <p class="text-xs opacity-60 mt-1">Bases de datos robustas para almacenar y gestionar la informacion de tus clientes.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BLOG (ultimos 3) -->
+  {latestArticles.length > 0 && (
+    <section class="section bg-surface-2">
+      <div class="container">
+        <div class="flex items-center justify-between mb-8">
+          <div>
+            <span class="section-label mb-4" data-aos="fade-up">05 BLOG</span>
+            <h2 class="font-display font-extrabold leading-tight" style="font-size:clamp(2rem,5vw,3.5rem)" data-aos="fade-up" data-aos-delay="100">Articulos sobre IA y automatizacion.</h2>
+          </div>
+          <a href={`${base}blog`} class="btn btn-outline btn-md" data-aos="fade-up" data-aos-delay="200">Ver todos <span style="font-size:1.2em">&#8594;</span></a>
+        </div>
+
+        <div class="grid-3">
+          {latestArticles.map((article, index) => (
+            <a href={`${base}blog/${article.slug}`} class="card card-hover" style="text-decoration:none;color:inherit;display:flex;flex-direction:column;" data-aos="fade-up" data-aos-delay={index * 100}>
+              {article.featured_image ? (
+                <div style="aspect-ratio:16/10;border-bottom:3px solid var(--color-border);overflow:hidden;margin:-1.5rem -1.5rem 1rem -1.5rem;">
+                  <img src={article.featured_image} alt={article.title} style="width:100%;height:100%;object-fit:cover;" />
+                </div>
+              ) : null}
+              <div class="flex items-center gap-2 mb-2 text-xs font-mono text-uppercase tracking-wide text-ink-muted">
+                <span>{formatDate(article.published_at)}</span>
+              </div>
+              <h3 class="font-display text-lg font-extrabold leading-tight mb-2 line-clamp-2">{article.title}</h3>
+              <p class="text-sm text-ink-muted line-clamp-2 mb-3">{excerptFallback(article)}</p>
+              {tagsArray(article.tags).length > 0 && (
+                <div class="flex flex-wrap gap-1 mt-auto">
+                  {tagsArray(article.tags).slice(0, 3).map((tag) => (
+                    <span class="tag tag-default tag-sm">{tag}</span>
+                  ))}
+                </div>
+              )}
+            </a>
+          ))}
+        </div>
+      </div>
+    </section>
+  )}
+
+  <!-- CONTACTO -->
+  <section class="cta-banner" id="form-contacto">
+    <div class="container">
+      <div class="grid-2" style="align-items:start">
+        <div data-aos="fade-up">
+          <span class="section-label" style="border-color:var(--color-accent-ink);color:var(--color-accent-ink)">06 CONTACTO</span>
+          <h2 class="font-display font-extrabold leading-tight mt-4" style="font-size:clamp(2.5rem,7vw,5rem);letter-spacing:-0.03em;color:var(--color-accent-ink)">
+            Hablemos de tu proyecto.
+          </h2>
+          <p class="text-lg mt-4 max-w-2xl" style="color:var(--color-accent-ink);opacity:0.8">
+            Cuentanos sobre tu negocio y te ayudamos a encontrar la automatizacion perfecta.
+          </p>
+          <div class="flex flex-col gap-3 mt-8">
+            <a href={`https://wa.me/${whatsappClean}`} target="_blank" class="cta-btn" style="width:fit-content">
+              <i class="bi bi-whatsapp" style="font-size:1.2em"></i> Escribenos por WhatsApp
+            </a>
+            <a href={`mailto:${configs.email}`} class="cta-btn" style="width:fit-content">
+              <i class="bi bi-envelope-fill" style="font-size:1.2em"></i> Mandanos un correo
+            </a>
+            <a href={configs.instagram} target="_blank" class="cta-btn" style="width:fit-content">
+              <i class="bi bi-instagram" style="font-size:1.2em"></i> Siguenos en Instagram
+            </a>
+          </div>
+        </div>
+
+        <div data-aos="fade-up" data-aos-delay="100">
+          <ContactForm client:load />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    // Smooth scroll para anclas internas
+    document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+      anchor.addEventListener('click', function (e) {
+        const href = this.getAttribute('href');
+        if (!href || href === '#') return;
+        const target = document.querySelector(href);
+        if (target) {
+          e.preventDefault();
+          target.scrollIntoView({ behavior: 'smooth' });
+        }
+      });
+    });
+  </script>
+</PublicLayout>

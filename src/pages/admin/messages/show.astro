@@ -1,0 +1,157 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+---
+
+<AdminLayout title="Mensaje" active="messages">
+  <div id="message-mount">
+    <div class="loading-spinner" style="margin:2rem auto;display:block"></div>
+    <p class="text-sm text-ink-muted text-center font-mono">Cargando mensaje...</p>
+  </div>
+
+  <script>
+    import { supabase } from '../../../lib/supabase';
+    import { getLoginUrl } from '../../../lib/auth';
+
+    const _rawBase = import.meta.env.BASE_URL || '/';
+    const base = _rawBase.endsWith('/') ? _rawBase : _rawBase + '/';
+    const mount = document.getElementById('message-mount')!;
+
+    function escapeHtml(s: string): string {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]!));
+    }
+
+    function formatDate(dateStr: string): string {
+      const d = new Date(dateStr);
+      return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+    }
+
+    function timeAgo(dateStr: string): string {
+      const date = new Date(dateStr);
+      const diff = Date.now() - date.getTime();
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) return 'hace un momento';
+      if (mins < 60) return `hace ${mins} min`;
+      const hours = Math.floor(mins / 60);
+      if (hours < 24) return `hace ${hours}h`;
+      const days = Math.floor(hours / 24);
+      return `hace ${days}d`;
+    }
+
+    function cleanPhone(phone: string): string {
+      return phone.replace(/[^0-9]/g, '');
+    }
+
+    // Extraer ID del query param: /admin/messages/show?id=123
+    const urlParams = new URLSearchParams(window.location.search);
+    const messageId = urlParams.get('id');
+
+    async function init() {
+      if (!messageId) {
+        mount.innerHTML = `<div class="alert alert-error">ID de mensaje no especificado</div>`;
+        return;
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        window.location.href = getLoginUrl();
+        return;
+      }
+      (window as any).__supabaseClient = supabase;
+
+      const { data: msg, error } = await supabase
+        .from('contact_messages')
+        .select('*')
+        .eq('id', Number(messageId))
+        .maybeSingle();
+
+      if (error || !msg) {
+        mount.innerHTML = `<div class="alert alert-error">Mensaje no encontrado</div>
+          <a href="${base}admin/messages" class="btn btn-outline btn-sm mt-4"><i class="bi bi-arrow-left"></i> Volver</a>`;
+        return;
+      }
+
+      // Marcar como leido si no lo esta
+      if (!msg.is_read) {
+        await supabase.from('contact_messages').update({ is_read: true }).eq('id', msg.id);
+      }
+
+      const phoneClean = msg.phone ? cleanPhone(msg.phone) : '';
+
+      mount.innerHTML = `
+        <a href="${base}admin/messages" class="btn btn-outline btn-sm mb-6"><i class="bi bi-arrow-left"></i> Volver</a>
+
+        <div class="flex items-center justify-between mb-6 flex-wrap gap-2">
+          <h1 class="font-display font-extrabold" style="font-size:clamp(1.5rem,3.5vw,2rem)">Mensaje de ${escapeHtml(msg.name)}</h1>
+          <div class="flex gap-1">
+            <span class="tag tag-default tag-sm">Leido</span>
+          </div>
+        </div>
+
+        <div class="grid-2 mb-6" style="align-items:start">
+          <div class="card">
+            <h3 class="font-display text-lg font-extrabold mb-4">Datos del remitente</h3>
+            <div class="flex flex-col gap-4">
+              <div>
+                <div class="form-label">Nombre</div>
+                <div class="font-bold">${escapeHtml(msg.name)}</div>
+              </div>
+              <div>
+                <div class="form-label">Email</div>
+                <a href="mailto:${escapeHtml(msg.email)}" class="font-mono text-sm">${escapeHtml(msg.email)}</a>
+              </div>
+              ${msg.phone ? `
+              <div>
+                <div class="form-label">Telefono</div>
+                <a href="tel:${escapeHtml(msg.phone)}" class="font-mono text-sm">${escapeHtml(msg.phone)}</a>
+              </div>` : ''}
+              ${msg.country ? `
+              <div>
+                <div class="form-label">Pais</div>
+                <div class="font-mono text-sm">${escapeHtml(msg.country)}</div>
+              </div>` : ''}
+              <div>
+                <div class="form-label">Recibido</div>
+                <div class="font-mono text-sm">${formatDate(msg.created_at)} <span class="text-ink-muted">(${timeAgo(msg.created_at)})</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-display text-lg font-extrabold">Mensaje</h3>
+              <div class="flex gap-1 flex-wrap">
+                <a href="https://wa.me/${phoneClean}" ${!msg.phone ? 'style="opacity:0.4;pointer-events:none"' : ''} target="_blank" class="btn btn-outline btn-sm" title="Responder por WhatsApp"><i class="bi bi-whatsapp"></i></a>
+                <a href="mailto:${escapeHtml(msg.email)}?subject=Re: Tu mensaje a HookBloq" class="btn btn-outline btn-sm" title="Responder por email"><i class="bi bi-reply"></i></a>
+              </div>
+            </div>
+            <div class="card" style="background:var(--color-bg);border-width:2px;padding:1rem;">
+              <p style="white-space:pre-wrap;word-wrap:break-word">${escapeHtml(msg.message)}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex gap-2 flex-wrap">
+          <button id="markUnread" class="btn btn-outline"><i class="bi bi-envelope"></i> Marcar como no leido</button>
+          <button id="deleteBtn" class="btn btn-danger"><i class="bi bi-trash"></i> Eliminar mensaje</button>
+        </div>`;
+
+      document.getElementById('markUnread')?.addEventListener('click', async () => {
+        await supabase.from('contact_messages').update({ is_read: false }).eq('id', msg.id);
+        window.location.href = base + 'admin/messages';
+      });
+
+      document.getElementById('deleteBtn')?.addEventListener('click', async () => {
+        if (!confirm(`Eliminar el mensaje de ${msg.name}? Esta accion no se puede deshacer.`)) return;
+        const { error } = await supabase.from('contact_messages').delete().eq('id', msg.id);
+        if (error) { alert('Error: ' + error.message); return; }
+        window.location.href = base + 'admin/messages';
+      });
+    }
+
+    init().catch((err) => {
+      mount.innerHTML = `<div class="alert alert-error">Error: ${escapeHtml(err.message)}</div>`;
+    });
+  </script>
+</AdminLayout>

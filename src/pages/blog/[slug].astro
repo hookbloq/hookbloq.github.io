@@ -1,0 +1,171 @@
+---
+import PublicLayout from '../../layouts/PublicLayout.astro';
+import { supabase, type Article } from '../../lib/supabase';
+
+export async function getStaticPaths() {
+  const { data, error } = await supabase
+    .from('articles')
+    .select('slug')
+    .eq('is_published', true);
+
+  if (error || !data) {
+    return [];
+  }
+
+  return data.map((row) => ({
+    params: { slug: row.slug },
+  }));
+}
+
+const { slug } = Astro.params;
+
+// Fetch del articulo completo + relacionados en build time
+const { data: article } = await supabase
+  .from('articles')
+  .select('*')
+  .eq('slug', slug)
+  .eq('is_published', true)
+  .maybeSingle();
+
+if (!article) {
+  const _rb = import.meta.env.BASE_URL || '/';
+  const _b = _rb.endsWith('/') ? _rb : _rb + '/';
+  return Astro.redirect(`${_b}blog`);
+}
+
+const { data: relatedData } = await supabase
+  .from('articles')
+  .select('id, title, slug, excerpt, content, published_at')
+  .eq('is_published', true)
+  .neq('id', article.id)
+  .order('published_at', { ascending: false })
+  .limit(3);
+
+const related: Article[] = relatedData ?? [];
+
+function tagsArray(tags: string | null | undefined): string[] {
+  if (!tags) return [];
+  return tags.split(',').map((t) => t.trim()).filter(Boolean);
+}
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  return `${d.getDate()} de ${months[d.getMonth()]} de ${d.getFullYear()}`;
+}
+
+function excerptFallback(a: Article): string {
+  if (a.excerpt) return a.excerpt;
+  const text = a.content.replace(/<[^>]*>/g, '');
+  return text.length > 120 ? text.slice(0, 120) + '...' : text;
+}
+
+const _rawBase = import.meta.env.BASE_URL || '/';
+const base = _rawBase.endsWith('/') ? _rawBase : _rawBase + '/';
+const tags = tagsArray(article.tags);
+const updatedTs = article.updated_at;
+---
+
+<PublicLayout title={article.title} description={article.excerpt ?? undefined}>
+  <article>
+    <header class="hero grid-bg">
+      <div class="container py-12">
+        <div data-aos="fade-up">
+          <a href={`${base}blog`} class="btn btn-ghost btn-sm mb-6">
+            <i class="bi bi-arrow-left"></i> Volver al blog
+          </a>
+          <div class="flex flex-wrap items-center gap-3 mb-6">
+            {tags.map((tag) => <span class="tag tag-accent">{tag}</span>)}
+          </div>
+        </div>
+        <h1 class="font-display hero-title mb-6" data-aos="fade-up" data-aos-delay="100" style="font-size:clamp(2.5rem,7vw,4.5rem);max-width:48rem;">
+          {article.title}
+        </h1>
+        <p class="text-sm font-mono text-ink-muted" data-aos="fade-up" data-aos-delay="200">
+          Publicado el {formatDate(article.published_at)}
+        </p>
+      </div>
+    </header>
+
+    {article.featured_image && (
+      <div class="container" style="margin-top:-3rem;position:relative;z-index:10;" data-aos="fade-up">
+        <img src={article.featured_image} alt={article.title} style="width:100%;max-height:500px;object-fit:cover;border:3px solid var(--color-border);box-shadow:var(--shadow-brutal);" />
+      </div>
+    )}
+
+    <div class="section">
+      <div class="article-content" id="article-content" style="max-width:42rem;margin:0 auto;padding:0 var(--spacing-xl);" data-article-id={article.id} data-updated-ts={updatedTs} set:html={article.content} />
+    </div>
+
+    {related.length > 0 && (
+      <section class="section bg-surface-2 section-border">
+        <div class="container">
+          <span class="section-label mb-6" data-aos="fade-up">RELACIONADOS</span>
+          <h2 class="font-display font-extrabold leading-tight mb-12" style="font-size:clamp(2rem,5vw,3rem)" data-aos="fade-up" data-aos-delay="100">Sigue leyendo.</h2>
+
+          <div class="grid-3">
+            {related.map((rel, index) => (
+              <a href={`${base}blog/${rel.slug}`} class="card card-hover" style="text-decoration:none;color:inherit;display:flex;flex-direction:column;" data-aos="fade-up" data-aos-delay={index * 100}>
+                <div class="flex items-center gap-2 mb-2 text-xs font-mono text-uppercase tracking-wide text-ink-muted">
+                  <span>{formatDate(rel.published_at)}</span>
+                </div>
+                <h3 class="font-display text-lg font-extrabold leading-tight mb-2 line-clamp-2">{rel.title}</h3>
+                <p class="text-sm text-ink-muted line-clamp-2">{excerptFallback(rel)}</p>
+              </a>
+            ))}
+          </div>
+        </div>
+      </section>
+    )}
+
+    <section class="cta-banner">
+      <div class="container">
+        <div class="grid-2" style="align-items:end">
+          <div data-aos="fade-up">
+            <span class="section-label" style="border-color:var(--color-accent-ink);color:var(--color-accent-ink)">CONTACTO</span>
+            <h2 class="font-display font-extrabold leading-tight mt-4" style="font-size:clamp(2rem,6vw,3.5rem);letter-spacing:-0.03em;color:var(--color-accent-ink)">
+              Te ayudamos a automatizar.
+            </h2>
+          </div>
+          <div style="display:flex;justify-content:flex-end" data-aos="fade-up" data-aos-delay="100">
+            <a href={`${base}#contacto`} class="cta-btn">
+              Habla con nosotros <span style="font-size:1.2em">&#8594;</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </article>
+
+  <script>
+    // Revalidacion client-side: si el articulo fue editado en Supabase
+    // despues del ultimo build, refresca el contenido sin rebuild.
+    (async function () {
+      const container = document.getElementById('article-content');
+      if (!container) return;
+      const articleId = container.getAttribute('data-article-id');
+      const staticTs = container.getAttribute('data-updated-ts');
+      if (!articleId || !staticTs) return;
+
+      try {
+        const { supabase } = await import('../../lib/supabase');
+        const { data } = await supabase
+          .from('articles')
+          .select('content, updated_at, title, excerpt, tags')
+          .eq('id', Number(articleId))
+          .maybeSingle();
+
+        if (data && data.updated_at > staticTs) {
+          // El articulo fue editado: refrescar contenido
+          container.innerHTML = data.content;
+          document.title = `${data.title} | HookBloq - Automatizacion con IA`;
+          console.info('[blog] Contenido revalidado desde Supabase');
+        }
+      } catch (e) {
+        // Silencioso: si falla la revalidacion, mostramos la version estatica
+        console.warn('[blog] Revalidacion fallida:', e);
+      }
+    })();
+  </script>
+</PublicLayout>

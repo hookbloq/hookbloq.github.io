@@ -1,0 +1,53 @@
+---
+import '../styles/app.css';
+import Navbar from '../components/Navbar.astro';
+import Footer from '../components/Footer.astro';
+import { loadSiteConfigs } from '../lib/site-config';
+
+export interface Props {
+  title?: string;
+  description?: string;
+}
+
+const { title = 'HookBloq', description = 'HookBloq - Automatizacion con IA' } = Astro.props;
+const configs = await loadSiteConfigs();
+const _rawBase = import.meta.env.BASE_URL || '/';
+const base = _rawBase.endsWith('/') ? _rawBase : _rawBase + '/';
+---
+
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title} | HookBloq - Automatizacion con IA</title>
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400..700&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+    />
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+  </head>
+  <body class="bg-page">
+    <Navbar configs={configs} />
+    <main>
+      <slot />
+    </main>
+    <Footer configs={configs} />
+
+    <script is:inline src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script is:inline>
+      AOS.init({ duration: 800, offset: 120, once: true, easing: 'ease-out-cubic' });
+    </script>
+  </body>
+</html>

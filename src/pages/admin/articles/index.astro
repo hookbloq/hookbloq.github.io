@@ -1,0 +1,137 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+---
+
+<AdminLayout title="Articulos" active="articles">
+  <div id="articles-mount">
+    <div class="flex items-center justify-between mb-8">
+      <h1 class="font-display font-extrabold" style="font-size:clamp(1.75rem,4vw,2.5rem)">Articulos</h1>
+      <span class="loading-spinner" id="loadingIndicator"></span>
+    </div>
+    <p class="text-sm text-ink-muted">Cargando articulos...</p>
+  </div>
+
+  <script>
+    import { supabase } from '../../../lib/supabase';
+    import { getLoginUrl } from '../../../lib/auth';
+
+    const _rawBase = import.meta.env.BASE_URL || '/';
+    const base = _rawBase.endsWith('/') ? _rawBase : _rawBase + '/';
+    const mount = document.getElementById('articles-mount')!;
+    const loadingEl = document.getElementById('loadingIndicator');
+
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        window.location.href = getLoginUrl();
+        return;
+      }
+      (window as any).__supabaseClient = supabase;
+
+      const { data: articles, error } = await supabase
+        .from('articles')
+        .select('id, title, slug, tags, is_published, created_at')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      function escapeHtml(s: string): string {
+        return String(s).replace(/[&<>"']/g, (c) => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]!));
+      }
+
+      function formatDate(dateStr: string): string {
+        const d = new Date(dateStr);
+        return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+      }
+
+      function tagsArray(tags: string | null): string[] {
+        if (!tags) return [];
+        return tags.split(',').map((t) => t.trim()).filter(Boolean);
+      }
+
+      const list = articles ?? [];
+      if (list.length === 0) {
+        mount.innerHTML = `
+          <div class="flex items-center justify-between mb-8">
+            <h1 class="font-display font-extrabold" style="font-size:clamp(1.75rem,4vw,2.5rem)">Articulos</h1>
+            <a href="${base}admin/articles/new" class="btn btn-primary">Nuevo articulo <i class="bi bi-plus-lg"></i></a>
+          </div>
+          <div class="card text-center py-12">
+            <i class="bi bi-journal-text" style="font-size:3rem;color:var(--color-ink-muted);display:block;margin-bottom:1rem;"></i>
+            <p class="text-ink-muted mb-4">No hay articulos creados.</p>
+            <a href="${base}admin/articles/new" class="btn btn-primary">Crear primer articulo <i class="bi bi-plus-lg"></i></a>
+          </div>`;
+        return;
+      }
+
+      const rows = list.map((a: any) => `
+        <tr>
+          <td>
+            <div class="font-bold">${escapeHtml(a.title)}</div>
+            <div class="text-xs font-mono text-ink-muted mt-1">${escapeHtml(a.slug)}</div>
+          </td>
+          <td>
+            ${a.is_published
+              ? '<span class="tag tag-accent">Publicado</span>'
+              : '<span class="tag tag-default">Borrador</span>'}
+          </td>
+          <td>
+            <div class="flex flex-wrap gap-1">
+              ${tagsArray(a.tags).map((t) => `<span class="tag tag-default tag-sm">${escapeHtml(t)}</span>`).join('')}
+            </div>
+          </td>
+          <td class="text-sm font-mono">${formatDate(a.created_at)}</td>
+          <td>
+            <div class="flex gap-1">
+              <a href="${base}admin/articles/edit?id=${a.id}" class="btn btn-outline btn-sm">Editar</a>
+              <button class="btn btn-danger btn-sm" data-delete-id="${a.id}" data-delete-title="${escapeHtml(a.title)}">
+                <i class="bi bi-trash"></i> Eliminar
+              </button>
+            </div>
+          </td>
+        </tr>`).join('');
+
+      mount.innerHTML = `
+        <div class="flex items-center justify-between mb-8">
+          <h1 class="font-display font-extrabold" style="font-size:clamp(1.75rem,4vw,2.5rem)">Articulos</h1>
+          <a href="${base}admin/articles/new" class="btn btn-primary">Nuevo articulo <i class="bi bi-plus-lg"></i></a>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Titulo</th>
+                <th>Estado</th>
+                <th>Tags</th>
+                <th>Fecha</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+
+      // Handlers de eliminar
+      mount.querySelectorAll('[data-delete-id]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = btn.getAttribute('data-delete-id');
+          const title = btn.getAttribute('data-delete-title');
+          if (!confirm(`Eliminar el articulo "${title}"? Esta accion no se puede deshacer.`)) return;
+          const { error } = await supabase.from('articles').delete().eq('id', Number(id));
+          if (error) {
+            alert('Error al eliminar: ' + error.message);
+            return;
+          }
+          init();
+        });
+      });
+    }
+
+    init().catch((err) => {
+      if (loadingEl) loadingEl.style.display = 'none';
+      mount.innerHTML = `<div class="alert alert-error">Error: ${escapeHtml(err.message)}</div>`;
+    });
+  </script>
+</AdminLayout>

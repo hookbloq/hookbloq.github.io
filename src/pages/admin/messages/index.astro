@@ -1,0 +1,365 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+---
+
+<AdminLayout title="Mensajes" active="messages">
+  <div id="messages-mount">
+    <div class="flex items-center justify-between mb-8 flex-wrap gap-4">
+      <h1 class="font-display font-extrabold" style="font-size:clamp(1.75rem,4vw,2.5rem)">Mensajes</h1>
+      <span class="loading-spinner" id="loadingIndicator"></span>
+    </div>
+    <p class="text-sm text-ink-muted">Cargando mensajes...</p>
+  </div>
+
+  <script>
+    import { supabase } from '../../../lib/supabase';
+    import { getLoginUrl } from '../../../lib/auth';
+
+    const _rawBase = import.meta.env.BASE_URL || '/';
+    const base = _rawBase.endsWith('/') ? _rawBase : _rawBase + '/';
+    const mount = document.getElementById('messages-mount')!;
+    const loadingEl = document.getElementById('loadingIndicator');
+
+    let currentFilter: 'all' | 'unread' | 'read' = 'all';
+    let currentSearch = '';
+    let currentPage = 1;
+    const PER_PAGE = 15;
+
+    let totalCount = 0, unreadCount = 0, readCount = 0, viewTotal = 0;
+
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        window.location.href = getLoginUrl();
+        return;
+      }
+      (window as any).__supabaseClient = supabase;
+
+      // Parsear query params iniciales
+      const urlParams = new URLSearchParams(window.location.search);
+      const f = urlParams.get('filter');
+      const s = urlParams.get('search');
+      if (f === 'unread' || f === 'read' || f === 'all') currentFilter = f;
+      if (s) currentSearch = s;
+
+      await loadCounts();
+      await load();
+    }
+
+    async function loadCounts() {
+      const [all, unread, read] = await Promise.all([
+        supabase.from('contact_messages').select('*', { count: 'exact', head: true }),
+        supabase.from('contact_messages').select('*', { count: 'exact', head: true }).eq('is_read', false),
+        supabase.from('contact_messages').select('*', { count: 'exact', head: true }).eq('is_read', true),
+      ]);
+      totalCount = all.count ?? 0;
+      unreadCount = unread.count ?? 0;
+      readCount = read.count ?? 0;
+
+      // Actualizar badge del sidebar
+      const updateBadge = (window as any).__updateUnreadBadge;
+      if (typeof updateBadge === 'function') updateBadge(unreadCount);
+    }
+
+    function escapeHtml(s: string): string {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]!));
+    }
+
+    function truncate(s: string, n: number): string {
+      return s.length > n ? s.slice(0, n) + '...' : s;
+    }
+
+    function formatDate(dateStr: string): { date: string; time: string } {
+      const d = new Date(dateStr);
+      return {
+        date: `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`,
+        time: `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`,
+      };
+    }
+
+    async function load() {
+      // Actualizar URL con filtros (sin recargar)
+      const params = new URLSearchParams();
+      if (currentFilter !== 'all') params.set('filter', currentFilter);
+      if (currentSearch) params.set('search', currentSearch);
+      const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+      window.history.replaceState({}, '', newUrl);
+
+      let query = supabase
+        .from('contact_messages')
+        .select('id, name, email, phone, country, message, is_read, created_at', { count: 'exact' });
+
+      if (currentFilter === 'unread') query = query.eq('is_read', false);
+      else if (currentFilter === 'read') query = query.eq('is_read', true);
+
+      if (currentSearch) {
+        const s = currentSearch.trim();
+        query = query.or(`name.ilike.%${s}%,email.ilike.%${s}%,phone.ilike.%${s}%,country.ilike.%${s}%,message.ilike.%${s}%`);
+      }
+
+      const from = (currentPage - 1) * PER_PAGE;
+      const to = from + PER_PAGE - 1;
+      const { data, error, count } = await query.order('created_at', { ascending: false }).range(from, to);
+
+      if (error) {
+        mount.innerHTML = `<div class="alert alert-error">Error: ${escapeHtml(error.message)}</div>`;
+        return;
+      }
+
+      viewTotal = count ?? 0;
+      const totalPages = Math.max(1, Math.ceil(viewTotal / PER_PAGE));
+      const messages = data ?? [];
+
+      renderList(messages, totalPages);
+    }
+
+    function renderList(messages: any[], totalPages: number) {
+      const filterBtns = `
+        <div class="flex items-center gap-2 mb-6 flex-wrap">
+          <button data-filter="all" class="btn ${currentFilter === 'all' ? 'btn-primary' : 'btn-outline'} btn-sm">Todos</button>
+          <button data-filter="unread" class="btn ${currentFilter === 'unread' ? 'btn-primary' : 'btn-outline'} btn-sm">No leidos</button>
+          <button data-filter="read" class="btn ${currentFilter === 'read' ? 'btn-primary' : 'btn-outline'} btn-sm">Leidos</button>
+        </div>`;
+
+      const stats = `
+        <div class="grid-4 mb-6">
+          <div class="card card-hover ${currentFilter === 'all' ? 'bg-accent' : ''}">
+            <div class="stat-value">${totalCount}</div><div class="stat-label">Total</div>
+          </div>
+          <div class="card card-hover ${currentFilter === 'unread' ? 'bg-accent' : ''}">
+            <div class="stat-value">${unreadCount}</div><div class="stat-label">Sin leer</div>
+          </div>
+          <div class="card card-hover ${currentFilter === 'read' ? 'bg-accent' : ''}">
+            <div class="stat-value">${readCount}</div><div class="stat-label">Leidos</div>
+          </div>
+          <div class="card card-hover">
+            <div class="stat-value">${viewTotal}</div><div class="stat-label">En esta vista</div>
+          </div>
+        </div>`;
+
+      const searchBar = `
+        <div class="flex items-center justify-between mb-8 flex-wrap gap-4">
+          <h1 class="font-display font-extrabold" style="font-size:clamp(1.75rem,4vw,2.5rem)">Mensajes</h1>
+          <form id="searchForm" class="flex items-center gap-2">
+            <input type="hidden" name="filter" value="${currentFilter}" />
+            <input class="form-input" type="search" name="search" value="${escapeHtml(currentSearch)}" placeholder="Buscar nombre, email, mensaje..." style="width:260px" />
+            <button type="submit" class="btn btn-outline"><i class="bi bi-search"></i></button>
+            ${currentSearch ? `<button type="button" id="clearSearch" class="btn btn-outline" title="Limpiar"><i class="bi bi-x-lg"></i></button>` : ''}
+          </form>
+        </div>`;
+
+      if (messages.length === 0) {
+        mount.innerHTML = `${searchBar}${stats}${filterBtns}
+          <div class="card text-center" style="padding:3rem 1.5rem;">
+            <i class="bi bi-inbox" style="font-size:3rem;color:var(--color-ink-muted);display:block;margin-bottom:1rem;"></i>
+            <p class="text-ink-muted mb-2">${currentSearch ? `No se encontraron mensajes para "${escapeHtml(currentSearch)}".` : currentFilter !== 'all' ? 'No hay mensajes en este filtro.' : 'No hay mensajes aun.'}</p>
+            ${(currentSearch || currentFilter !== 'all') ? `<button id="resetFilters" class="btn btn-outline btn-sm mt-4">Ver todos los mensajes</button>` : ''}
+          </div>`;
+        bindSearch();
+        bindFilters();
+        const reset = document.getElementById('resetFilters');
+        if (reset) reset.addEventListener('click', () => { currentFilter = 'all'; currentSearch = ''; currentPage = 1; load(); });
+        return;
+      }
+
+      const rows = messages.map((msg) => {
+        const { date, time } = formatDate(msg.created_at);
+        return `
+          <tr ${!msg.is_read ? 'style="background:rgba(255,212,0,0.08)"' : ''}>
+            <td style="text-align:center">
+              <input type="checkbox" class="row-check" value="${msg.id}" />
+            </td>
+            <td>
+              <div class="font-bold text-sm">${escapeHtml(msg.name)}</div>
+              <div class="text-xs font-mono text-ink-muted mt-1">${escapeHtml(msg.email)}</div>
+              ${(msg.phone || msg.country) ? `
+                <div class="text-xs font-mono text-ink-muted mt-1">
+                  ${msg.phone ? `<i class="bi bi-telephone"></i> ${escapeHtml(msg.phone)}` : ''}
+                  ${(msg.phone && msg.country) ? ' · ' : ''}
+                  ${msg.country ? `<i class="bi bi-geo-alt"></i> ${escapeHtml(msg.country)}` : ''}
+                </div>` : ''}
+            </td>
+            <td><p class="text-sm" style="max-width:380px">${escapeHtml(truncate(msg.message, 120))}</p></td>
+            <td>${!msg.is_read ? '<span class="tag tag-danger tag-sm">Nuevo</span>' : '<span class="tag tag-default tag-sm">Leido</span>'}</td>
+            <td class="text-xs font-mono">
+              <div>${date}</div><div class="text-ink-muted">${time}</div>
+            </td>
+            <td>
+              <div class="flex gap-1 flex-wrap">
+                <a href="${base}admin/messages/show?id=${msg.id}" class="btn btn-outline btn-sm">Ver</a>
+                ${!msg.is_read
+                  ? `<button class="btn btn-outline btn-sm" data-action="read" data-id="${msg.id}" title="Marcar como leido"><i class="bi bi-check2"></i></button>`
+                  : `<button class="btn btn-outline btn-sm" data-action="unread" data-id="${msg.id}" title="Marcar como no leido"><i class="bi bi-envelope"></i></button>`}
+                <button class="btn btn-danger btn-sm" data-action="delete" data-id="${msg.id}" data-name="${escapeHtml(msg.name)}" title="Eliminar"><i class="bi bi-trash"></i></button>
+              </div>
+            </td>
+          </tr>`;
+      }).join('');
+
+      const bulkBar = `
+        <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <div class="flex items-center gap-2">
+            <label class="form-checkbox font-mono text-sm">
+              <input type="checkbox" id="selectAll" />
+              <span>Seleccionar todos (visibles)</span>
+            </label>
+            <span id="selectedCount" class="tag tag-default tag-sm">0 seleccionados</span>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <button id="bulkDelete" class="btn btn-danger btn-sm" disabled>
+              <i class="bi bi-trash"></i> Eliminar seleccionados
+            </button>
+            ${totalCount > 1 ? `<button id="deleteAll" class="btn btn-danger btn-sm" title="Elimina todos los mensajes">
+              <i class="bi bi-trash-fill"></i> Eliminar todos (${totalCount})
+            </button>` : ''}
+          </div>
+        </div>`;
+
+      const pagination = totalPages > 1 ? `
+        <div class="flex items-center justify-between mt-6 flex-wrap gap-2">
+          <div class="font-mono text-sm text-ink-muted">
+            Mostrando ${(currentPage - 1) * PER_PAGE + 1}-${Math.min(currentPage * PER_PAGE, viewTotal)} de ${viewTotal}
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="prevPage" class="btn btn-outline btn-sm" ${currentPage === 1 ? 'disabled style="opacity:0.4"' : ''}>
+              <i class="bi bi-chevron-left"></i> Anterior
+            </button>
+            <span class="tag tag-default">Pag. ${currentPage} / ${totalPages}</span>
+            <button id="nextPage" class="btn btn-outline btn-sm" ${currentPage === totalPages ? 'disabled style="opacity:0.4"' : ''}>
+              Siguiente <i class="bi bi-chevron-right"></i>
+            </button>
+          </div>
+        </div>` : '';
+
+      mount.innerHTML = `
+        ${searchBar}${stats}${filterBtns}
+        ${bulkBar}
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:40px"></th>
+                <th>Remitente</th>
+                <th>Mensaje</th>
+                <th>Estado</th>
+                <th>Fecha</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        ${pagination}`;
+
+      bindSearch();
+      bindFilters();
+      bindBulk();
+      bindActions();
+      bindPagination(totalPages);
+    }
+
+    function bindSearch() {
+      const form = document.getElementById('searchForm') as HTMLFormElement | null;
+      form?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        currentSearch = (form.querySelector('[name="search"]') as HTMLInputElement).value.trim();
+        currentPage = 1;
+        load();
+      });
+      const clear = document.getElementById('clearSearch');
+      clear?.addEventListener('click', () => { currentSearch = ''; currentPage = 1; load(); });
+    }
+
+    function bindFilters() {
+      mount.querySelectorAll('[data-filter]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          currentFilter = btn.getAttribute('data-filter') as any;
+          currentPage = 1;
+          load();
+        });
+      });
+    }
+
+    function bindBulk() {
+      const selectAll = document.getElementById('selectAll') as HTMLInputElement | null;
+      const bulkDelete = document.getElementById('bulkDelete') as HTMLButtonElement | null;
+      const deleteAll = document.getElementById('deleteAll') as HTMLButtonElement | null;
+
+      function updateSelected() {
+        const checked = mount.querySelectorAll('.row-check:checked') as NodeListOf<HTMLInputElement>;
+        const count = checked.length;
+        const label = document.getElementById('selectedCount');
+        if (label) label.textContent = `${count} seleccionado${count === 1 ? '' : 's'}`;
+        if (bulkDelete) bulkDelete.disabled = count === 0;
+        const all = mount.querySelectorAll('.row-check').length;
+        if (selectAll) selectAll.checked = all > 0 && count === all;
+      }
+
+      selectAll?.addEventListener('change', () => {
+        mount.querySelectorAll('.row-check').forEach((cb: HTMLInputElement) => { cb.checked = selectAll.checked; });
+        updateSelected();
+      });
+      mount.querySelectorAll('.row-check').forEach((cb) => cb.addEventListener('change', updateSelected));
+
+      bulkDelete?.addEventListener('click', async () => {
+        const checked = Array.from(mount.querySelectorAll('.row-check:checked')) as HTMLInputElement[];
+        const ids = checked.map((cb) => Number(cb.value));
+        if (ids.length === 0) return;
+        if (!confirm(`Eliminar ${ids.length} mensaje(s)? Esta accion no se puede deshacer.`)) return;
+        const { error } = await supabase.from('contact_messages').delete().in('id', ids);
+        if (error) { alert('Error: ' + error.message); return; }
+        currentPage = 1;
+        await loadCounts();
+        await load();
+      });
+
+      deleteAll?.addEventListener('click', async () => {
+        if (!confirm(`ATENCION: Esto eliminara TODOS los ${totalCount} mensajes. Esta accion no se puede deshacer. Continuar?`)) return;
+        const { error } = await supabase.from('contact_messages').delete().neq('id', 0);
+        if (error) { alert('Error: ' + error.message); return; }
+        currentPage = 1;
+        await loadCounts();
+        await load();
+      });
+
+      updateSelected();
+    }
+
+    function bindActions() {
+      mount.querySelectorAll('[data-action]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const action = btn.getAttribute('data-action');
+          const id = Number(btn.getAttribute('data-id'));
+          if (action === 'read') {
+            await supabase.from('contact_messages').update({ is_read: true }).eq('id', id);
+          } else if (action === 'unread') {
+            await supabase.from('contact_messages').update({ is_read: false }).eq('id', id);
+          } else if (action === 'delete') {
+            const name = btn.getAttribute('data-name');
+            if (!confirm(`Eliminar el mensaje de ${name}?`)) return;
+            const { error } = await supabase.from('contact_messages').delete().eq('id', id);
+            if (error) { alert('Error: ' + error.message); return; }
+          }
+          await loadCounts();
+          await load();
+        });
+      });
+    }
+
+    function bindPagination(totalPages: number) {
+      document.getElementById('prevPage')?.addEventListener('click', () => {
+        if (currentPage > 1) { currentPage--; load(); }
+      });
+      document.getElementById('nextPage')?.addEventListener('click', () => {
+        if (currentPage < totalPages) { currentPage++; load(); }
+      });
+    }
+
+    init().catch((err) => {
+      if (loadingEl) loadingEl.style.display = 'none';
+      mount.innerHTML = `<div class="alert alert-error">Error: ${escapeHtml(err.message)}</div>`;
+    });
+  </script>
+</AdminLayout>

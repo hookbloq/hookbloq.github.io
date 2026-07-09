@@ -1,0 +1,125 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+
+const _rawBase = import.meta.env.BASE_URL || '/';
+const base = _rawBase.endsWith('/') ? _rawBase : _rawBase + '/';
+---
+
+<AdminLayout title="Nuevo Articulo" active="articles">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/trix/1.3.1/trix.min.css" />
+
+  <div class="flex items-center justify-between mb-8">
+    <h1 class="font-display font-extrabold" style="font-size:clamp(1.75rem,4vw,2.5rem)">Nuevo Articulo</h1>
+    <a href={`${base}admin/articles`} class="btn btn-outline"><i class="bi bi-arrow-left"></i> Volver</a>
+  </div>
+
+  <div id="alertMount"></div>
+
+  <form id="articleForm" class="card">
+    <div class="grid-2 mb-4">
+      <div class="form-group">
+        <label class="form-label" for="title">Titulo <span style="color:var(--color-accent-2)">*</span></label>
+        <input class="form-input" id="title" name="title" type="text" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="tags">Tags (separados por coma)</label>
+        <input class="form-input" id="tags" name="tags" type="text" placeholder="IA, n8n, Automatizacion..." />
+      </div>
+    </div>
+
+    <div class="form-group mb-4">
+      <label class="form-label" for="excerpt">Extracto (max 300 caracteres)</label>
+      <textarea class="form-textarea" id="excerpt" name="excerpt" rows="2" maxlength="300"></textarea>
+    </div>
+
+    <div class="form-group mb-4">
+      <label class="form-label" for="featured_image">URL de imagen destacada</label>
+      <input class="form-input" id="featured_image" name="featured_image" type="text" placeholder="https://..." />
+    </div>
+
+    <div class="form-group mb-4">
+      <label class="form-label" for="content">Contenido <span style="color:var(--color-accent-2)">*</span></label>
+      <input id="content" name="content" type="hidden" />
+      <trix-editor input="content"></trix-editor>
+    </div>
+
+    <div class="form-group mb-6">
+      <div class="form-checkbox">
+        <input type="checkbox" id="is_published" name="is_published" value="1" />
+        <label class="form-label" for="is_published" style="margin-bottom:0;">Publicar ahora</label>
+      </div>
+    </div>
+
+    <div class="flex gap-2">
+      <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">Guardar articulo <span style="font-size:1.2em">&#8594;</span></button>
+      <a href={`${base}admin/articles`} class="btn btn-outline btn-lg">Cancelar</a>
+    </div>
+  </form>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/trix/1.3.1/trix.min.js"></script>
+  <script>
+    import { supabase } from '../../../lib/supabase';
+    import { getLoginUrl } from '../../../lib/auth';
+    import { generateUniqueSlug } from '../../../lib/slugify';
+
+    const _rawBase = import.meta.env.BASE_URL || '/';
+    const base = _rawBase.endsWith('/') ? _rawBase : _rawBase + '/';
+    const form = document.getElementById('articleForm') as HTMLFormElement;
+    const submitBtn = document.getElementById('submitBtn') as HTMLButtonElement;
+    const alertMount = document.getElementById('alertMount')!;
+
+    function showMsg(msg: string, type: 'success' | 'error' = 'success') {
+      alertMount.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+      if (type === 'success') setTimeout(() => { alertMount.innerHTML = ''; }, 4000);
+    }
+
+    (async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        window.location.href = getLoginUrl();
+        return;
+      }
+      (window as any).__supabaseClient = supabase;
+    })();
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = (document.getElementById('title') as HTMLInputElement).value.trim();
+      const tags = (document.getElementById('tags') as HTMLInputElement).value.trim();
+      const excerpt = (document.getElementById('excerpt') as HTMLTextAreaElement).value.trim() || null;
+      const featured_image = (document.getElementById('featured_image') as HTMLInputElement).value.trim() || null;
+      const content = (document.getElementById('content') as HTMLInputElement).value;
+      const is_published = (document.getElementById('is_published') as HTMLInputElement).checked;
+
+      if (!title) { showMsg('El titulo es obligatorio', 'error'); return; }
+      if (!content || !content.trim()) { showMsg('El contenido es obligatorio', 'error'); return; }
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="loading-spinner"></span> Guardando...';
+
+      try {
+        const slug = await generateUniqueSlug(title);
+        const { error } = await supabase.from('articles').insert({
+          title,
+          slug,
+          excerpt,
+          content,
+          featured_image,
+          tags: tags || null,
+          is_published,
+          published_at: is_published ? new Date().toISOString() : null,
+        });
+
+        if (error) throw error;
+
+        showMsg('Articulo creado exitosamente. Redirigiendo...', 'success');
+        setTimeout(() => { window.location.href = base + 'admin/articles'; }, 1200);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Error desconocido';
+        showMsg('Error al crear: ' + msg, 'error');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'Guardar articulo <span style="font-size:1.2em">&#8594;</span>';
+      }
+    });
+  </script>
+</AdminLayout>

@@ -1,0 +1,153 @@
+---
+import '../styles/admin.css';
+import { loadSiteConfigs } from '../lib/site-config';
+import type { SiteConfigMap } from '../lib/supabase';
+
+export interface Props {
+  title?: string;
+  active?: string;
+  user?: { id: string; email: string; name: string; role: string } | null;
+}
+
+const { title = 'Admin', active = '', user = null } = Astro.props;
+const _rawBase = import.meta.env.BASE_URL || '/';
+const base = _rawBase.endsWith('/') ? _rawBase : _rawBase + '/';
+// Cargamos configs para el badge de mensajes no leidos en el sidebar
+const configs: SiteConfigMap = await loadSiteConfigs();
+---
+
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title} - HookBloq Admin</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400..700&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+    />
+  </head>
+  <body>
+    <button class="sb-toggle" id="sbToggle" aria-label="Abrir menu">
+      <i class="bi bi-list"></i>
+    </button>
+    <div class="sb-overlay" id="sbOverlay"></div>
+
+    <aside class="admin-sidebar" id="adminSidebar">
+      <div class="sb-brand">
+        <svg width="36" height="36" viewBox="0 0 54 54" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
+          <rect x="8" y="8" width="44" height="44" fill="#000000" />
+          <rect x="2" y="2" width="44" height="44" fill="#ffd400" stroke="#000000" stroke-width="4" />
+          <rect x="16" y="16" width="16" height="16" fill="#000000" />
+        </svg>
+        <div style="line-height:1.2">
+          <div class="font-display font-extrabold" style="font-size:1.05rem">HookBloq</div>
+          <div class="font-mono" style="font-size:0.6rem;opacity:0.55;letter-spacing:0.1em">ADMIN PANEL v1.0</div>
+        </div>
+      </div>
+
+      <nav class="sb-nav" aria-label="Navegacion principal">
+        <div class="sb-section-label">Principal</div>
+        <a href={`${base}admin`} class={`sb-item ${active === 'dashboard' ? 'active' : ''}`}>
+          <span class="sb-ico"><i class="bi bi-speedometer2"></i></span> Dashboard
+        </a>
+
+        <div class="sb-section-label">Gestion</div>
+        <a href={`${base}admin/articles`} class={`sb-item ${active.startsWith('articles') ? 'active' : ''}`}>
+          <span class="sb-ico"><i class="bi bi-file-earmark-text"></i></span> Articulos
+        </a>
+        <a href={`${base}admin/messages`} class={`sb-item ${active.startsWith('messages') ? 'active' : ''}`}>
+          <span class="sb-ico"><i class="bi bi-envelope"></i></span> Mensajes
+          <span class="sb-badge" id="unreadBadge" style="display:none">0</span>
+        </a>
+        <a href={`${base}admin/config`} class={`sb-item ${active === 'config' ? 'active' : ''}`}>
+          <span class="sb-ico"><i class="bi bi-gear"></i></span> Configuracion
+        </a>
+
+        <div class="sb-section-label">Sistema</div>
+        <a href={base} target="_blank" class="sb-item" style="opacity:0.7">
+          <span class="sb-ico"><i class="bi bi-box-arrow-up-right"></i></span> Ver sitio
+        </a>
+      </nav>
+
+      <div class="sb-footer">
+        <div class="sb-user">
+          <div class="sb-avatar" id="userAvatar">A</div>
+          <div style="line-height:1.25;min-width:0">
+            <div class="font-bold" style="font-size:0.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="userName">Admin</div>
+            <div class="font-mono" style="font-size:0.62rem;opacity:0.55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="userEmail">--</div>
+          </div>
+        </div>
+        <button type="button" class="sb-logout" id="logoutBtn">
+          <span class="sb-ico" style="border-color:#000"><i class="bi bi-box-arrow-left"></i></span> Cerrar sesion
+        </button>
+      </div>
+    </aside>
+
+    <main class="admin-main" id="adminAlertMount">
+      <slot />
+    </main>
+
+    <script is:inline define:vars={{ user, base }}>
+      (function () {
+        // Sidebar toggle (mobile)
+        var toggle = document.getElementById('sbToggle');
+        var sidebar = document.getElementById('adminSidebar');
+        var overlay = document.getElementById('sbOverlay');
+        function open() { sidebar.classList.add('open'); overlay.classList.add('open'); }
+        function close() { sidebar.classList.remove('open'); overlay.classList.remove('open'); }
+        if (toggle) toggle.addEventListener('click', open);
+        if (overlay) overlay.addEventListener('click', close);
+        sidebar.querySelectorAll('.sb-item').forEach(function (el) { el.addEventListener('click', close); });
+
+        // Rellenar info del usuario
+        if (user) {
+          var nameEl = document.getElementById('userName');
+          var emailEl = document.getElementById('userEmail');
+          var avatarEl = document.getElementById('userAvatar');
+          if (nameEl) nameEl.textContent = user.name;
+          if (emailEl) emailEl.textContent = user.email;
+          if (avatarEl) avatarEl.textContent = (user.name || 'A').charAt(0).toUpperCase();
+        }
+
+        // Logout
+        var logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+          logoutBtn.addEventListener('click', async function () {
+            try {
+              const { supabase } = await import(/* @vite-ignore */ base + 'src/lib/supabase.ts');
+              // Fallback: usar el cliente global si existe
+              if (window.__supabaseClient) {
+                await window.__supabaseClient.auth.signOut();
+              }
+              window.location.href = base + 'admin/login';
+            } catch (e) {
+              window.location.href = base + 'admin/login';
+            }
+          });
+        }
+
+        // Badge de mensajes no leidos (se rellena via API en dashboard.js)
+        window.__updateUnreadBadge = function (count) {
+          var badge = document.getElementById('unreadBadge');
+          if (badge) {
+            if (count > 0) {
+              badge.textContent = count > 99 ? '99+' : String(count);
+              badge.style.display = 'inline-flex';
+            } else {
+              badge.style.display = 'none';
+            }
+          }
+        };
+      })();
+    </script>
+  </body>
+</html>

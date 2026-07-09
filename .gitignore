@@ -1,0 +1,28 @@
+# Build output
+dist/
+.output/
+
+# Dependencies
+node_modules/
+
+# Astro generated
+.astro/
+
+# Environment variables (contienen claves publicas - no secretas pero mejor no commitear)
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*

@@ -1,0 +1,120 @@
+---
+import '../../styles/admin.css';
+
+const _rawBase = import.meta.env.BASE_URL || '/';
+const base = _rawBase.endsWith('/') ? _rawBase : _rawBase + '/';
+---
+
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login - HookBloq Admin</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400..700&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+    />
+  </head>
+  <body>
+    <div class="flex items-center justify-center" style="min-height:70vh;">
+      <div class="card" style="width:100%;max-width:28rem;margin:2rem;">
+        <div class="text-center mb-6">
+          <svg width="48" height="48" viewBox="0 0 54 54" xmlns="http://www.w3.org/2000/svg" style="margin:0 auto 1rem;">
+            <rect x="8" y="8" width="44" height="44" fill="#000000" />
+            <rect x="2" y="2" width="44" height="44" fill="#ffd400" stroke="#000000" stroke-width="4" />
+            <rect x="16" y="16" width="16" height="16" fill="#000000" />
+          </svg>
+          <h1 class="font-display text-2xl font-extrabold">HookBloq Admin</h1>
+          <p class="text-sm text-ink-muted mt-2">Ingresa tus credenciales</p>
+        </div>
+
+        <div id="alertMount"></div>
+
+        <form id="loginForm">
+          <div class="form-group">
+            <label class="form-label" for="email">Email</label>
+            <input class="form-input" id="email" name="email" type="email" required autofocus />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="password">Contrasena</label>
+            <input class="form-input" id="password" name="password" type="password" required />
+          </div>
+          <button type="submit" class="btn btn-primary btn-lg w-full mt-4" id="submitBtn">
+            Iniciar sesion <span style="font-size:1.2em">&#8594;</span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      import { supabase } from '../../lib/supabase';
+
+      const _rawBase = import.meta.env.BASE_URL || '/';
+      const base = _rawBase.endsWith('/') ? _rawBase : _rawBase + '/';
+      const form = document.getElementById('loginForm') as HTMLFormElement | null;
+      const submitBtn = document.getElementById('submitBtn') as HTMLButtonElement | null;
+      const alertMount = document.getElementById('alertMount');
+
+      function showError(msg: string) {
+        if (!alertMount) return;
+        alertMount.innerHTML = `<div class="alert alert-error mb-4">${msg}</div>`;
+      }
+
+      function clearError() {
+        if (alertMount) alertMount.innerHTML = '';
+      }
+
+      // Si ya hay sesion, redirigir al dashboard
+      (async function checkSession() {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          window.location.href = base + 'admin';
+        }
+      })();
+
+      form?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        clearError();
+
+        const formData = new FormData(form);
+        const email = (formData.get('email') as string)?.trim();
+        const password = (formData.get('password') as string) ?? '';
+
+        if (!email || !password) {
+          showError('Email y contrasena son obligatorios.');
+          return;
+        }
+
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<span class="loading-spinner"></span> Ingresando...';
+        }
+
+        try {
+          const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+          if (!data.user) throw new Error('No se recibio usuario');
+
+          // Redirigir al dashboard
+          window.location.href = base + 'admin';
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'Credenciales no validas';
+          showError('Las credenciales no son validas.');
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Iniciar sesion <span style="font-size:1.2em">&#8594;</span>';
+          }
+        }
+      });
+    </script>
+  </body>
+</html>

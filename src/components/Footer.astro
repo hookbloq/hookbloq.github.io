@@ -1,0 +1,59 @@
+---
+import type { SiteConfigMap } from '../lib/supabase';
+import { cleanWhatsAppNumber } from '../lib/site-config';
+
+export interface Props {
+  configs: SiteConfigMap;
+}
+
+const { configs } = Astro.props;
+const _rawBase = import.meta.env.BASE_URL || '/';
+const base = _rawBase.endsWith('/') ? _rawBase : _rawBase + '/';
+const year = new Date().getFullYear();
+const today = new Date().toISOString().slice(0, 10);
+const whatsappClean = cleanWhatsAppNumber(configs.whatsapp ?? '');
+---
+
+<footer class="footer" id="contacto">
+  <div class="footer-grid">
+    <div style="display:flex;flex-direction:column;gap:var(--spacing-md)">
+      <div class="flex items-center gap-2">
+        <svg width="32" height="32" viewBox="0 0 54 54" xmlns="http://www.w3.org/2000/svg">
+          <rect x="8" y="8" width="44" height="44" fill="#000000" />
+          <rect x="2" y="2" width="44" height="44" fill="#ffd400" stroke="#000000" stroke-width="4" />
+          <rect x="16" y="16" width="16" height="16" fill="#000000" />
+        </svg>
+        <h3 class="font-display text-2xl font-extrabold leading-tight">HookBloq</h3>
+      </div>
+      <p class="text-sm opacity-70 max-w-sm">{configs.footer_text}</p>
+      <div class="flex flex-col gap-2 text-sm">
+        <a href={`mailto:${configs.email}`} class="flex items-center gap-2"><i class="bi bi-envelope-fill"></i> {configs.email}</a>
+        <a href={`https://wa.me/${whatsappClean}`} target="_blank" class="flex items-center gap-2"><i class="bi bi-whatsapp"></i> {configs.whatsapp}</a>
+        <a href={configs.instagram} target="_blank" class="flex items-center gap-2"><i class="bi bi-instagram"></i> Instagram</a>
+      </div>
+    </div>
+    <div>
+      <div class="font-mono text-xs text-uppercase tracking-wide opacity-60 mb-3">Navegacion</div>
+      <ul style="display:flex;flex-direction:column;gap:var(--spacing-sm)">
+        <li><a href={`${base}#servicios`} class="text-sm">Servicios</a></li>
+        <li><a href={`${base}#proceso`} class="text-sm">Proceso</a></li>
+        <li><a href={`${base}#tecnologias`} class="text-sm">Tecnologias</a></li>
+        <li><a href={`${base}blog`} class="text-sm">Blog</a></li>
+        <li><a href={`${base}#contacto`} class="text-sm">Contacto</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="font-mono text-xs text-uppercase tracking-wide opacity-60 mb-3">Paises</div>
+      <p class="text-sm opacity-70">Colombia</p>
+      <p class="text-sm opacity-70">Venezuela</p>
+      <p class="text-xs opacity-50 font-mono mt-3">&copy; {year} HookBloq</p>
+    </div>
+  </div>
+  <div class="footer-bottom mt-12">
+    <span class="font-mono text-xs opacity-60">v1.0.0 · {today}</span>
+    <span class="flex items-center gap-2 text-xs font-mono">
+      <span style="display:inline-block;width:8px;height:8px;background:var(--color-accent)"></span>
+      <span class="opacity-80">DISPONIBLE</span>
+    </span>
+  </div>
+</footer>
