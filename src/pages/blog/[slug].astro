@@ -152,15 +152,37 @@ const updatedTs = article.updated_at;
         const { supabase } = await import('../../lib/supabase');
         const { data } = await supabase
           .from('articles')
-          .select('content, updated_at, title, excerpt, tags')
+          .select('content, updated_at, title, excerpt, tags, featured_image')
           .eq('id', Number(articleId))
           .maybeSingle();
 
         if (data && data.updated_at > staticTs) {
-          // El articulo fue editado: refrescar contenido
+          // Refrescar contenido
           container.innerHTML = data.content;
           document.title = `${data.title} | HookBloq - Automatizacion con IA`;
-          console.info('[blog] Contenido revalidado desde Supabase');
+
+          // Refrescar imagen destacada si existe en la BD
+          const existingSection = container.closest('.section');
+          const existingImageDiv = existingSection?.previousElementSibling;
+          const isImageDiv = existingImageDiv?.classList?.contains('container') &&
+            existingImageDiv?.querySelector('img');
+
+          if (data.featured_image) {
+            if (isImageDiv) {
+              // Actualizar src de la imagen existente
+              existingImageDiv.querySelector('img').src = data.featured_image;
+              existingImageDiv.querySelector('img').alt = data.title;
+            } else if (existingSection) {
+              // Inyectar la imagen antes del section de contenido
+              const imgDiv = document.createElement('div');
+              imgDiv.className = 'container';
+              imgDiv.style.cssText = 'margin-top:-3rem;position:relative;z-index:10;';
+              imgDiv.innerHTML = `<img src="${data.featured_image}" alt="${data.title}" style="width:100%;max-height:500px;object-fit:cover;border:3px solid var(--color-border);box-shadow:var(--shadow-brutal);" />`;
+              existingSection.parentNode.insertBefore(imgDiv, existingSection);
+            }
+          }
+
+          console.info('[blog] Contenido e imagen revalidados desde Supabase');
         }
       } catch (e) {
         // Silencioso: si falla la revalidacion, mostramos la version estatica
