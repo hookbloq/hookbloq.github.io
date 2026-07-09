@@ -89,8 +89,8 @@ const updatedTs = article.updated_at;
     </header>
 
     {article.featured_image && (
-      <div style="margin:2rem auto;max-width:42rem;">
-        <img src={article.featured_image} alt={article.title} style="display:block;max-width:100%;height:600px;border:3px solid var(--color-border);box-shadow:var(--shadow-brutal);" />
+      <div style="margin:2rem auto;text-align:center;">
+        <img src={article.featured_image} alt={article.title} style="display:block;width:auto;height:600px;border:3px solid var(--color-border);box-shadow:var(--shadow-brutal);" />
       </div>
     )}
 
@@ -175,8 +175,8 @@ const updatedTs = article.updated_at;
             } else if (existingSection) {
               // Inyectar la imagen antes del section de contenido
               const imgWrap = document.createElement('div');
-              imgWrap.style.cssText = 'margin:2rem auto;max-width:42rem;';
-              imgWrap.innerHTML = `<img src="${data.featured_image}" alt="${data.title}" style="display:block;max-width:100%;height:600px;border:3px solid var(--color-border);box-shadow:var(--shadow-brutal);" />`;
+              imgWrap.style.cssText = 'margin:2rem auto;text-align:center;';
+              imgWrap.innerHTML = `<img src="${data.featured_image}" alt="${data.title}" style="display:block;width:auto;height:600px;border:3px solid var(--color-border);box-shadow:var(--shadow-brutal);" />`;
               existingSection.parentNode.insertBefore(imgWrap, existingSection);
             }
           }
