@@ -1,13 +1,12 @@
 ---
-import type { SiteConfigMap } from '../lib/supabase';
+import type { SiteConfigMap } from '../lib/site-config';
 
 export interface Props {
   configs: SiteConfigMap;
 }
 
 const { configs } = Astro.props;
-const _rawBase = import.meta.env.BASE_URL || '/';
-const base = _rawBase.endsWith('/') ? _rawBase : _rawBase + '/';
+const base = import.meta.env.BASE_URL;
 ---
 
 <header class="navbar">
@@ -21,7 +20,7 @@ const base = _rawBase.endsWith('/') ? _rawBase : _rawBase + '/';
       <span>HookBloq</span>
     </a>
     <nav>
-      <ul class="navbar-links">
+      <ul class="navbar-links" id="navbarLinks">
         <li><a href={`${base}#servicios`} class="navbar-link">Servicios</a></li>
         <li><a href={`${base}#proceso`} class="navbar-link">Proceso</a></li>
         <li><a href={`${base}#tecnologias`} class="navbar-link">Tecnologias</a></li>
@@ -29,5 +28,45 @@ const base = _rawBase.endsWith('/') ? _rawBase : _rawBase + '/';
         <li><a href={`${base}#contacto`} class="navbar-link">Contacto</a></li>
       </ul>
     </nav>
+    <button class="nav-toggle" id="navToggle" aria-label="Menu">
+      <i class="bi bi-list"></i>
+    </button>
   </div>
+  <div class="nav-overlay" id="navOverlay"></div>
 </header>
+
+<script>
+  (function () {
+    const toggle = document.getElementById('navToggle');
+    const links = document.getElementById('navbarLinks');
+    const overlay = document.getElementById('navOverlay');
+
+    if (!toggle || !links || !overlay) return;
+
+    function open() {
+      links.classList.add('open');
+      overlay.classList.add('open');
+      toggle.innerHTML = '<i class="bi bi-x-lg"></i>';
+    }
+
+    function close() {
+      links.classList.remove('open');
+      overlay.classList.remove('open');
+      toggle.innerHTML = '<i class="bi bi-list"></i>';
+    }
+
+    toggle.addEventListener('click', function () {
+      if (links.classList.contains('open')) {
+        close();
+      } else {
+        open();
+      }
+    });
+
+    overlay.addEventListener('click', close);
+
+    links.querySelectorAll('.navbar-link').forEach(function (el) {
+      el.addEventListener('click', close);
+    });
+  })();
+</script>
