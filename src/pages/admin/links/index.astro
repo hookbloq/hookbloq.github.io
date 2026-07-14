@@ -1,0 +1,165 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+---
+
+<AdminLayout title="Enlaces" active="links">
+  <div id="links-mount">
+    <div class="flex items-center justify-between mb-8">
+      <h1 class="font-display font-extrabold" style="font-size:clamp(1.75rem,4vw,2.5rem)">Enlaces</h1>
+      <span class="loading-spinner" id="loadingIndicator"></span>
+    </div>
+    <p class="text-sm text-ink-muted">Cargando enlaces...</p>
+  </div>
+
+  <script>
+    import { supabase } from '../../../lib/supabase';
+    import { getLoginUrl } from '../../../lib/auth';
+
+    const _rawBase = import.meta.env.BASE_URL || '/';
+    const base = _rawBase.endsWith('/') ? _rawBase : _rawBase + '/';
+    const mount = document.getElementById('links-mount')!;
+    const loadingEl = document.getElementById('loadingIndicator');
+
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        window.location.href = getLoginUrl();
+        return;
+      }
+      (window as any).__supabaseClient = supabase;
+
+      await loadLinks();
+    }
+
+    async function loadLinks() {
+      const { data: links, error } = await supabase
+        .from('links')
+        .select('*')
+        .order('sort_order', { ascending: true });
+
+      if (error) throw error;
+
+      function escapeHtml(s: string): string {
+        return String(s).replace(/[&<>"']/g, (c) => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]!));
+      }
+
+      function formatDate(dateStr: string): string {
+        const d = new Date(dateStr);
+        return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+      }
+
+      const list = links ?? [];
+      if (list.length === 0) {
+        mount.innerHTML = `
+          <div class="flex items-center justify-between mb-8">
+            <h1 class="font-display font-extrabold" style="font-size:clamp(1.75rem,4vw,2.5rem)">Enlaces</h1>
+            <a href="${base}admin/links/new" class="btn btn-primary">Nuevo enlace <i class="bi bi-plus-lg"></i></a>
+          </div>
+          <div class="card text-center py-12">
+            <i class="bi bi-link-45deg" style="font-size:3rem;color:var(--color-ink-muted);display:block;margin-bottom:1rem;"></i>
+            <p class="text-ink-muted mb-4">No hay enlaces creados.</p>
+            <a href="${base}admin/links/new" class="btn btn-primary">Crear primer enlace <i class="bi bi-plus-lg"></i></a>
+          </div>`;
+        return;
+      }
+
+      const rows = list.map((l: any) => `
+        <tr>
+          <td>
+            <div style="display:flex;align-items:center;gap:0.5rem">
+              ${l.icon ? `<i class="${escapeHtml(l.icon)}" style="font-size:1.1rem;width:24px;text-align:center"></i>` : '<span style="width:24px;text-align:center;color:var(--color-ink-muted)">—</span>'}
+              <div>
+                <div class="font-bold">${escapeHtml(l.title)}</div>
+                ${l.description ? `<div class="text-xs text-ink-muted mt-1">${escapeHtml(l.description)}</div>` : ''}
+              </div>
+            </div>
+          </td>
+          <td class="text-sm" style="max-width:200px">
+            <span class="truncate" style="display:block" title="${escapeHtml(l.url)}">${escapeHtml(l.url)}</span>
+          </td>
+          <td class="text-sm font-mono" style="text-align:center">${l.sort_order}</td>
+          <td style="text-align:center">
+            <button class="btn btn-sm ${l.is_active ? 'btn-primary' : 'btn-outline'}" data-toggle-id="${l.id}" data-toggle-active="${l.is_active}">
+              ${l.is_active ? 'Activo' : 'Inactivo'}
+            </button>
+          </td>
+          <td class="text-sm font-mono">${formatDate(l.created_at)}</td>
+          <td>
+            <div class="flex gap-1">
+              <a href="${base}admin/links/edit?id=${l.id}" class="btn btn-outline btn-sm">Editar</a>
+              <button class="btn btn-danger btn-sm" data-delete-id="${l.id}" data-delete-title="${escapeHtml(l.title)}">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </td>
+        </tr>`).join('');
+
+      mount.innerHTML = `
+        <div class="flex items-center justify-between mb-8">
+          <h1 class="font-display font-extrabold" style="font-size:clamp(1.75rem,4vw,2.5rem)">Enlaces</h1>
+          <a href="${base}admin/links/new" class="btn btn-primary">Nuevo enlace <i class="bi bi-plus-lg"></i></a>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Titulo</th>
+                <th>URL</th>
+                <th style="text-align:center">Orden</th>
+                <th style="text-align:center">Estado</th>
+                <th>Fecha</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        <p class="text-xs text-ink-muted mt-4">Los enlaces activos se muestran en <a href="${base}links" target="_blank" style="text-decoration:underline">${window.location.origin}${base}links</a></p>`;
+
+      mount.querySelectorAll('[data-toggle-id]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = btn.getAttribute('data-toggle-id');
+          const currentActive = btn.getAttribute('data-toggle-active') === 'true';
+          const { error } = await supabase
+            .from('links')
+            .update({ is_active: !currentActive })
+            .eq('id', Number(id));
+          if (error) {
+            alert('Error: ' + error.message);
+            return;
+          }
+          await loadLinks();
+        });
+      });
+
+      mount.querySelectorAll('[data-delete-id]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = btn.getAttribute('data-delete-id');
+          const title = btn.getAttribute('data-delete-title');
+          if (!confirm(`Eliminar el enlace "${title}"? Esta accion no se puede deshacer.`)) return;
+          const { error } = await supabase.from('links').delete().eq('id', Number(id));
+          if (error) {
+            alert('Error: ' + error.message);
+            return;
+          }
+          await loadLinks();
+        });
+      });
+
+      if (loadingEl) loadingEl.style.display = 'none';
+    }
+
+    function escapeHtml(s: string): string {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]!));
+    }
+
+    init().catch((err) => {
+      if (loadingEl) loadingEl.style.display = 'none';
+      mount.innerHTML = `<div class="alert alert-error">Error: ${escapeHtml(err.message)}</div>`;
+    });
+  </script>
+</AdminLayout>

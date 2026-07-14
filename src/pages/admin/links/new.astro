@@ -1,0 +1,192 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+---
+
+<AdminLayout title="Nuevo Enlace" active="links">
+  <div class="flex items-center justify-between mb-8">
+    <h1 class="font-display font-extrabold" style="font-size:clamp(1.75rem,4vw,2.5rem)">Nuevo Enlace</h1>
+    <a href={`${import.meta.env.BASE_URL || '/'}admin/links`} class="btn btn-outline">
+      <i class="bi bi-arrow-left"></i> Volver
+    </a>
+  </div>
+
+  <div id="alertMount"></div>
+
+  <form id="linkForm" class="card">
+    <div class="grid-2">
+      <div class="form-group">
+        <label class="form-label" for="title">Titulo</label>
+        <input class="form-input" id="title" name="title" type="text" required placeholder="Mi Instagram" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="url">URL</label>
+        <input class="form-input" id="url" name="url" type="url" required placeholder="https://instagram.com/hookbloq" />
+      </div>
+    </div>
+
+    <div class="form-group mt-4">
+      <label class="form-label" for="description">Descripcion (opcional)</label>
+      <input class="form-input" id="description" name="description" type="text" placeholder="Siguenos para mas contenido" />
+    </div>
+
+    <div class="grid-2 mt-4">
+      <div class="form-group">
+        <label class="form-label" for="iconSelect">Icono</label>
+        <div style="position:relative">
+          <div id="iconSelectorWrapper" style="display:flex;align-items:center;gap:0.75rem;border:3px solid var(--color-border);padding:0.6rem 0.75rem;background:#fff;cursor:pointer" onclick="toggleIconDropdown()">
+            <i id="iconPreview" style="font-size:1.4rem;width:28px;text-align:center;color:var(--color-ink-muted)"></i>
+            <span id="iconLabel" style="flex:1;font-family:var(--font-mono);font-size:0.75rem;color:var(--color-ink-muted)">Sin icono</span>
+            <i class="bi bi-chevron-down" style="font-size:0.8rem"></i>
+          </div>
+          <div id="iconDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:100;background:#fff;border:3px solid var(--color-border);border-top:none;max-height:260px;overflow-y:auto">
+            <input type="hidden" id="icon" name="icon" value="" />
+            <div id="iconOptions"></div>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="sort_order">Orden</label>
+        <input class="form-input" id="sort_order" name="sort_order" type="number" value="0" min="0" />
+      </div>
+    </div>
+
+    <div class="form-checkbox mt-4">
+      <input type="checkbox" id="is_active" name="is_active" checked />
+      <label class="form-label" for="is_active" style="cursor:pointer">Activo</label>
+    </div>
+
+    <div class="mt-8">
+      <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+        Crear enlace <i class="bi bi-plus-lg"></i>
+      </button>
+    </div>
+  </form>
+
+  <script>
+    import { supabase } from '../../../lib/supabase';
+    import { getLoginUrl } from '../../../lib/auth';
+
+    const ICONS = [
+      { value: '', label: 'Sin icono' },
+      { value: 'bi bi-globe', label: 'Sitio web' },
+      { value: 'bi bi-instagram', label: 'Instagram' },
+      { value: 'bi bi-whatsapp', label: 'WhatsApp' },
+      { value: 'bi bi-facebook', label: 'Facebook' },
+      { value: 'bi bi-twitter-x', label: 'X (Twitter)' },
+      { value: 'bi bi-youtube', label: 'YouTube' },
+      { value: 'bi bi-tiktok', label: 'TikTok' },
+      { value: 'bi bi-linkedin', label: 'LinkedIn' },
+      { value: 'bi bi-github', label: 'GitHub' },
+      { value: 'bi bi-envelope', label: 'Email' },
+      { value: 'bi bi-telephone', label: 'Telefono' },
+      { value: 'bi bi-cart', label: 'Tienda' },
+      { value: 'bi bi-calendar', label: 'Agenda / Cita' },
+      { value: 'bi bi-spotify', label: 'Spotify' },
+      { value: 'bi bi-discord', label: 'Discord' },
+      { value: 'bi bi-telegram', label: 'Telegram' },
+      { value: 'bi bi-chat-dots', label: 'Chat / Messenger' },
+      { value: 'bi bi-camera', label: 'Fotos' },
+      { value: 'bi bi-newspaper', label: 'Blog / Prensa' },
+      { value: 'bi bi-play-btn', label: 'Video / Streaming' },
+      { value: 'bi bi-link-45deg', label: 'Link generico' },
+      { value: 'bi bi-pinterest', label: 'Pinterest' },
+      { value: 'bi bi-threads', label: 'Threads' },
+      { value: 'bi bi-paypal', label: 'PayPal' },
+      { value: 'bi bi-pencil-square', label: 'Formulario' },
+      { value: 'bi bi-book', label: 'Recursos / Guia' },
+      { value: 'bi bi-star', label: 'Destacado' },
+    ];
+
+    const alertMount = document.getElementById('alertMount')!;
+    const form = document.getElementById('linkForm') as HTMLFormElement;
+    const submitBtn = document.getElementById('submitBtn') as HTMLButtonElement;
+    const iconField = document.getElementById('icon') as HTMLInputElement;
+    const iconPreview = document.getElementById('iconPreview') as HTMLElement;
+    const iconLabel = document.getElementById('iconLabel') as HTMLElement;
+    const iconDropdown = document.getElementById('iconDropdown') as HTMLElement;
+    const iconOptions = document.getElementById('iconOptions') as HTMLElement;
+
+    function showMsg(msg: string, type: 'success' | 'error' = 'success') {
+      alertMount.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+      if (type === 'success') setTimeout(() => { alertMount.innerHTML = ''; }, 5000);
+    }
+
+    function selectIcon(value: string) {
+      const opt = ICONS.find((o: any) => o.value === value) || ICONS[0];
+      iconField.value = opt.value;
+      iconPreview.className = opt.value;
+      iconLabel.textContent = opt.label;
+      iconDropdown.style.display = 'none';
+    }
+    window.selectIcon = selectIcon;
+
+    window.toggleIconDropdown = function () {
+      iconDropdown.style.display = iconDropdown.style.display === 'none' ? 'block' : 'none';
+    };
+
+    document.addEventListener('click', function (e: any) {
+      if (!(e.target as HTMLElement).closest('#iconSelectorWrapper')) {
+        iconDropdown.style.display = 'none';
+      }
+    });
+
+    function renderIconOptions() {
+      let html = '';
+      for (const opt of ICONS) {
+        const iconHtml = opt.value ? `<i class="${opt.value}" style="font-size:1.2rem;width:28px;text-align:center"></i>` : `<span style="width:28px;text-align:center;color:var(--color-ink-muted)">—</span>`;
+        html += `<div class="icon-option" data-value="${opt.value}" style="display:flex;align-items:center;gap:0.75rem;padding:0.5rem 0.75rem;cursor:pointer;border-bottom:1px solid var(--color-border-muted);font-family:var(--font-mono);font-size:0.75rem;transition:background 0.15s" onmouseover="this.style.background='var(--color-accent)'" onmouseout="this.style.background=''" onclick="selectIcon('${opt.value.replace(/'/g, "\\'")}')">${iconHtml} ${opt.label}</div>`;
+      }
+      iconOptions.innerHTML = html;
+    }
+    renderIconOptions();
+
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        window.location.href = getLoginUrl();
+        return;
+      }
+      (window as any).__supabaseClient = supabase;
+    }
+    init();
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="loading-spinner"></span> Creando...';
+
+      try {
+        const title = (document.getElementById('title') as HTMLInputElement).value.trim();
+        const url = (document.getElementById('url') as HTMLInputElement).value.trim();
+        const description = (document.getElementById('description') as HTMLInputElement).value.trim() || null;
+        const icon = (document.getElementById('icon') as HTMLInputElement).value || null;
+        const sort_order = parseInt((document.getElementById('sort_order') as HTMLInputElement).value) || 0;
+        const is_active = (document.getElementById('is_active') as HTMLInputElement).checked;
+
+        if (!title || !url) {
+          showMsg('Titulo y URL son obligatorios.', 'error');
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = 'Crear enlace <i class="bi bi-plus-lg"></i>';
+          return;
+        }
+
+        const { error } = await supabase.from('links').insert({
+          title, url, description, icon, sort_order, is_active
+        });
+
+        if (error) throw error;
+        showMsg('Enlace creado exitosamente.', 'success');
+        form.reset();
+        selectIcon('');
+        (document.getElementById('is_active') as HTMLInputElement).checked = true;
+        (document.getElementById('sort_order') as HTMLInputElement).value = '0';
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Error desconocido';
+        showMsg('Error: ' + msg, 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'Crear enlace <i class="bi bi-plus-lg"></i>';
+      }
+    });
+  </script>
+</AdminLayout>

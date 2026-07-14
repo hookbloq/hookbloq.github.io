@@ -68,6 +68,9 @@ const configs: SiteConfigMap = await loadSiteConfigs();
           <span class="sb-ico"><i class="bi bi-envelope"></i></span> Mensajes
           <span class="sb-badge" id="unreadBadge" style="display:none">0</span>
         </a>
+        <a href={`${base}admin/links`} class={`sb-item ${active.startsWith('links') ? 'active' : ''}`}>
+          <span class="sb-ico"><i class="bi bi-link-45deg"></i></span> Enlaces
+        </a>
         <a href={`${base}admin/config`} class={`sb-item ${active === 'config' ? 'active' : ''}`}>
           <span class="sb-ico"><i class="bi bi-gear"></i></span> Configuracion
         </a>

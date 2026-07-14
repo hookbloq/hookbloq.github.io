@@ -79,3 +79,24 @@ export interface ContactMessageInput {
   country?: string | null;
   message: string;
 }
+
+export interface Link {
+  id: number;
+  title: string;
+  url: string;
+  icon: string | null;
+  description: string | null;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LinkInput {
+  title: string;
+  url: string;
+  icon?: string | null;
+  description?: string | null;
+  sort_order: number;
+  is_active: boolean;
+}
