@@ -1,0 +1,124 @@
+# Contenido editable de la Carta de Presentacion HookBloq
+# Modifica los textos aqui y luego actualizalos en el HTML.
+# Los textos que estan entre [corchetes] son dinamicos o reemplazables.
+
+# ============================================================
+# SECCION 1: HEADER
+# ============================================================
+# (Logo y badge - no se modifica)
+
+# ============================================================
+# SECCION 2: HOOK (fondo beige, borde rojo)
+# ============================================================
+HOOK_TITULO: Si recibes mas de 30 mensajes al dia en Instagram o WhatsApp y pierdes ventas por no responder a tiempo, este correo es para ti.
+
+# ============================================================
+# SECCION 3: QUE HACEMOS (fondo blanco)
+# ============================================================
+SECCION_LABEL: Que hacemos
+TITULO_QUE_HACEMOS: Construimos infraestructura de respuesta inmediata
+
+# Servicio 1 - Instagram
+SERVICIO_1_TITULO: Bots para DMs
+SERVICIO_1_ITEMS:
+  - Respuesta automatica en 3 segundos.
+  - Agendamiento de citas.
+  - Calificacion de leads.
+  - FAQs automatizadas.
+
+# Servicio 2 - WhatsApp
+SERVICIO_2_TITULO: Atencion automatizada
+SERVICIO_2_ITEMS:
+  - Respuestas con IA conversacional.
+  - Conexion directa a tu CRM.
+  - Operacion 24/7 sin pausa.
+  - Todo incluido en una mensualidad.
+
+# ============================================================
+# SECCION 4: COMO FUNCIONA (fondo beige, 5 pasos)
+# ============================================================
+SECCION_LABEL: Como funciona
+TITULO_COMO_FUNCIONA: En 5 pasos. Sin vueltas.
+
+PASO_1_TITULO: Un cliente te escribe
+PASO_1_DESC: Por Instagram DM o WhatsApp, a cualquier hora del dia o la noche.
+
+PASO_2_TITULO: El bot responde al instante
+PASO_2_DESC: En menos de 3 segundos, con IA que entiende el contexto de la conversacion.
+
+PASO_3_TITULO: Califica y clasifica
+PASO_3_DESC: Identifica si es un cliente listo para comprar, una consulta general o soporte post-venta.
+
+PASO_4_TITULO: Agenda o deriva
+PASO_4_DESC: Agenda la cita en Google Calendar o enruta al cliente premium directo a tu equipo de ventas.
+
+PASO_5_TITULO: Tu solo supervisas
+PASO_5_DESC: Toda la data se almacena en tu base de datos. Tu decides cuando y como intervenir.
+
+# ============================================================
+# SECCION 5: CASO DE EXITO (fondo negro)
+# ============================================================
+SECCION_LABEL: Resultados reales
+
+CASO_NOMBRE: Cirujano Plastico
+CASO_DESC: Automatizacion de agendamiento de citas via Instagram DM
+
+METRICA_1_VALOR: +70%
+METRICA_1_LABEL: Eficiencia
+
+METRICA_2_VALOR: 24/7
+METRICA_2_LABEL: Disponible
+
+METRICA_3_VALOR: 0
+METRICA_3_LABEL: Errores
+
+METRICA_4_VALOR: 3s
+METRICA_4_LABEL: Respuesta
+
+STACK: n8n · Instagram API · Google Calendar · MySQL · Webhooks
+
+# ============================================================
+# SECCION 6: POR QUE HOOKBLOQ (fondo blanco)
+# ============================================================
+SECCION_LABEL: Por que HookBloq
+TITULO_POR_QUE: Sin Zapier. Sin intermediarios. Sin nomina adicional.
+
+BENEFICIO_1: Webhooks nativos, no Zapier. Conexion directa sin plataformas intermedias que ralentizan y encarecen.
+BENEFICIO_2: Una sola mensualidad. Incluye APIs, servidores VPS, mantenimiento, monitoreo y soporte tecnico.
+BENEFICIO_3: Cuesta menos que medio sueldo. Sin prestaciones, sin capacitacion, sin rotacion de personal.
+BENEFICIO_4: Respuesta en 3 segundos, 24/7. Mientras duermes, tu competencia responde. Con HookBloq, tu tambien.
+BENEFICIO_5: Hecho en CO y VE. Entendemos el mercado latino y sus necesidades reales.
+
+# ============================================================
+# SECCION 7: INDUSTRIAS (fondo beige)
+# ============================================================
+SECCION_LABEL: Tu negocio es uno de estos?
+
+INDUSTRIA_1: Clinicas y consultorios
+INDUSTRIA_2: Restaurantes
+INDUSTRIA_3: Inmobiliarias
+INDUSTRIA_4: E-commerce
+INDUSTRIA_5: Barberias y salones
+INDUSTRIA_6: Y mas
+
+# ============================================================
+# SECCION 8: CTA (fondo amarillo)
+# ============================================================
+CTA_TITULO: Escribenos y te armamos una demo sin costo para tu negocio
+CTA_SUBTITULO: Cuentanos de tu negocio y en menos de 48 horas te mostramos como se veria tu bot en funcionamiento.
+CTA_BOTON_WHATSAPP: Escribir por WhatsApp
+CTA_BOTON_EMAIL: Enviar un correo
+
+# ============================================================
+# SECCION 9: FOOTER (fondo negro)
+# ============================================================
+FOOTER_BRAND: HookBloq · CO · VE
+
+# ============================================================
+# DATOS DE CONTACTO (modificar segun necesidad)
+# ============================================================
+EMAIL: hookbloq@gmail.com
+WHATSAPP: +57 311 726 9649
+INSTAGRAM: https://instagram.com/hookbloq
+SITIO_WEB: https://hookbloq.github.io
+WHATSAPP_LINK: https://wa.me/573117269649

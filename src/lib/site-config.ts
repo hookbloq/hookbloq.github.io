@@ -2,7 +2,7 @@ import { supabase, type SiteConfigMap } from './supabase';
 
 // Defaults del seeder Laravel (usados si la BD no responde o esta vacia)
 export const DEFAULT_CONFIGS: SiteConfigMap = {
-  whatsapp: '+57 3217269649',
+  whatsapp: '+57 311 7269649',
   email: 'hookbloq@gmail.com',
   instagram: 'https://instagram.com/hookbloq',
   footer_text:
